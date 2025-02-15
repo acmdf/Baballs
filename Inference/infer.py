@@ -1,12 +1,14 @@
 import cv2
 import onnxruntime as ort
 import utils.image_transforms as transforms
+from utils.open_iris_camera import Camera
 from copy import deepcopy
 from pythonosc import udp_client, osc_server, dispatcher
 from one_euro_filter import OneEuroFilter
 import numpy as np
 
-cap = cv2.VideoCapture(1)
+#cap = cv2.VideoCapture(1)
+cap = Camera("COM14")
 #capr = cv2.VideoCapture(0)
 
 min_cutoff = 2.09
@@ -36,10 +38,10 @@ sess = ort.InferenceSession(
 input_name = sess.get_inputs()[0].name
 output_name = sess.get_outputs()[0].name
 
-while cap.isOpened():
-    ret, frame = cap.read()
+while True:
+    ret, frame = cap.get_serial_camera_picture()
     #retr, framer = capr.read()
-    if not ret and not ret: break
+    if not ret and not ret: pass
     else:
         frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
         #framer = cv2.rotate(framer, cv2.ROTATE_90_COUNTERCLOCKWISE)
@@ -66,13 +68,15 @@ while cap.isOpened():
         frame = cv2.circle(frame_clean, (int(output[0]*256), 256-int(output[1]*256)), 10, (0, 255, 0), -1)
         #framer = cv2.circle(frame_cleanr, (int(outputr[0]*256), 256-int(outputr[1]*256)), 10, (0, 255, 0), -1)
         #print(output)
-        oscclient.send_message("/avatar/parameters/v2" + "/EyeLeftX", float((output[0]*2)-1))
-        oscclient.send_message("/avatar/parameters/v2" + "/EyeRightX", float((output[0]*2)-1))
+        #oscclient.send_message("/avatar/parameters/v2" + "/EyeLeftX", float((output[0]*2)-1))
+        oscclient.send_message("/avatar/parameters/v2" + "/EyeLeftX", float(output[0]))
+        oscclient.send_message("/avatar/parameters/v2" + "/EyeLeftX", float(output[0]))
+        #oscclient.send_message("/avatar/parameters/v2" + "/EyeRightX", float((output[0]*2)-1))
         #oscclient.send_message("/avatar/parameters/v2" + "/EyeRightX", float(((1-outputr[0])*2)-1))
-        oscclient.send_message("/avatar/parameters/v2" + "/EyeLeftY", float((output[1]*2)-1.55))
-        oscclient.send_message("/avatar/parameters/v2" + "/EyeRightY", float((output[1]*2)-1.55))
+        oscclient.send_message("/avatar/parameters/v2" + "/EyeLeftY", float(output[1]))
+        oscclient.send_message("/avatar/parameters/v2" + "/EyeRightY", float(output[1]))
         print(output)
-        #cv2.imshow("frame", frame)
+        cv2.imshow("frame", frame)
         #cv2.imshow("framer", framer)
-        #cv2.waitKey(1)
+        cv2.waitKey(1)
         ##print(output)

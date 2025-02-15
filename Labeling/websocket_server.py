@@ -30,7 +30,7 @@ csv_writer.writerow(["frame", "timestamp", "ndc_x", "ndc_y", "ndc_z"])
 frame_count = 0  # To count frames
 
 # --- WebSocket Server Setup ---
-async def websocket_handler(websocket, path):
+async def websocket_handler(websocket):
     global ndc_data
     async for message in websocket:
         try:
