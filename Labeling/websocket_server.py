@@ -7,14 +7,18 @@ import time
 import csv
 from utils.open_iris_camera import Camera
 from time import sleep
+import numpy as np
 
 from copy import deepcopy
 
 # --- Global Setup ---
 # Initialize OpenCV camera (change index if needed)
-SERIAL_CAMERA = True
+SERIAL_CAMERA = False
 if SERIAL_CAMERA: cap = Camera("COM14"); sleep(.2)
-else: cap = cv2.VideoCapture(1)
+else: 
+    cap = cv2.VideoCapture(2) 
+    capr = cv2.VideoCapture(0) # Left/Right Capture
+    
 ndc_data = {"x": 0, "y": 0, "z": 0}  # This will store the latest NDC data
 
 # Create a directory to store frame images
@@ -50,6 +54,7 @@ def start_cv2_camera():
     while True:
         if not SERIAL_CAMERA:
             ret, frame = cap.read()
+            retr, framer = capr.read()
             if not ret:
                 print("Failed to grab frame")
                 break
@@ -59,23 +64,29 @@ def start_cv2_camera():
             ret, frame = cap.get_serial_camera_picture()
             height, width = 240,240
         
-        if ret:
+        if ret and retr:
 
             # Convert NDC (range [-1,1]) to pixel coordinates on the frame
             screen_x = int((ndc_data["x"] + 1) * 0.5 * width)
             screen_y = int((1 - ndc_data["y"]) * 0.5 * height)  # Invert Y since image coordinates start at top-left
 
             # Draw a green circle at the mapped NDC position and overlay the NDC text
-            frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+            #frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
             clean_frame = deepcopy(frame)
+            clean_framer = deepcopy(framer)
             cv2.circle(frame, (screen_x, screen_y), 10, (0, 255, 0), -1)
             cv2.putText(frame, f"NDC: {ndc_data}", (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            
+            cv2.circle(framer, (screen_x, screen_y), 10, (0, 255, 0), -1)
+            cv2.putText(framer, f"NDC: {ndc_data}", (20, 40),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
             # Save the frame as a PNG file
             frame_filename = os.path.join(frames_dir, f"frame_{frame_count:06d}.png")
-            clean_frame = cv2.resize(clean_frame, (256,256))
-            cv2.imwrite(frame_filename, clean_frame)
+            #clean_frame = cv2.resize(clean_frame, (256,256))
+            combine = np.concatenate((clean_frame, clean_framer), axis=1)
+            cv2.imwrite(frame_filename, combine)
 
             # Write a row in the CSV file with frame number, timestamp, and NDC data
             timestamp = time.time()
@@ -83,7 +94,7 @@ def start_cv2_camera():
             csv_file.flush()  # Ensure the row is written immediately
 
             # Display the frame
-            cv2.imshow("Webcam with NDC Overlay", frame)
+            cv2.imshow("Webcam with NDC Overlay", combine)
 
             frame_count += 1
 
