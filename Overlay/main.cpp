@@ -30,7 +30,7 @@
 #include "frame_buffer.h"
 #include "rest_server.h"
 #include "capture_data.h"
-#include "subprocess.h"
+#include "trainer_wrapper.h"
 #include "flags.h"
 #include <turbojpeg.h>
 #include <onnxruntime_cxx_api.h>
@@ -168,7 +168,9 @@ float g_fTargetPitchOffset = 0.0f; // Current pitch offset of target from center
 bool g_bTargetLocked = false;     // Whether the target position is locked
 bool g_Recording = false; // is recording data
 bool g_runningCalibration = false;
+bool g_isTrained = false;
 DashboardUI g_DashboardUI;
+TrainerWrapper g_Trainer;
 int g_currentFlags = 0;
 
 
@@ -437,7 +439,7 @@ int main(int argc, char* argv[])
         std::string sRunning = std::to_string(g_runningCalibration);
         std::string sRecording = std::to_string(g_Recording);
 
-        std::string sIsCalibrationComplete = std::to_string(g_OverlayManager.g_routineController.isComplete());
+        std::string sIsCalibrationComplete = std::to_string(g_OverlayManager.g_routineController.isComplete() && g_isTrained);
         std::string sCurrentOpIndex = std::to_string(g_OverlayManager.g_routineController.getCurrentOperationIndex());
         std::string sMaxOpIndex = std::to_string(g_OverlayManager.g_routineController.getTotalOperationCount());
 
@@ -449,16 +451,30 @@ int main(int argc, char* argv[])
     });
 
     server.register_handler("/start_cameras", [&frameBufferLeft, &frameBufferRight](const std::unordered_map<std::string, std::string>& params){
-
-        frameBufferRight.setURL(params.at("right").c_str());
-        frameBufferLeft.setURL(params.at("left").c_str());
-        initEyeConnections(&frameBufferLeft, &frameBufferRight);
+        printf("Got start_cameras\n");
         int width, height;
-        uint64_t time;
-        int* image = frameBufferLeft.getFrameCopy(&width, &height, &time);
-        free(image);
-        std::string sWidth = std::to_string(width);
-        std::string sHeight = std::to_string(height);
+        printf("Param counts: %i %i\n", params.count("left"), params.count("left"));
+        std::string sWidth = std::to_string(0);
+        std::string sHeight = std::to_string(0);
+        try{
+            printf(params.at("left").c_str());
+            printf("\n");
+            printf(params.at("left").c_str());
+            printf("\n");
+            frameBufferRight.setURL(params.at("left").c_str());
+            frameBufferLeft.setURL(params.at("left").c_str());
+            
+            initEyeConnections(&frameBufferLeft, &frameBufferRight);
+            
+            uint64_t time;
+            int* image = frameBufferLeft.getFrameCopy(&width, &height, &time);
+            free(image);
+            
+            sWidth = std::to_string(width);
+            sHeight = std::to_string(height);
+        }catch (const std::exception& e) {
+            printf("Error in preview thread: %s\n", e.what());
+        }
         return "{\"result\":\"ok\", \"width\": " + sWidth + ", \"height\": " + sHeight + "}";
     });
 
@@ -699,6 +715,15 @@ int main(int argc, char* argv[])
             if(OverlayManager::s_routineState == FLAG_ROUTINE_COMPLETE){
                 g_Recording = false;
                 closeCaptureFile(captureFile);
+                g_Trainer.start(filename, g_outputModelPath,
+                    [](const std::string& output){
+                        printf("trainer output: %s", output.c_str());
+                    },
+                    [](){
+                        printf("trainer finished!");
+                        g_isTrained = true;
+                    }
+                );
             }else{
                 int width, height;
                 uint64_t time;

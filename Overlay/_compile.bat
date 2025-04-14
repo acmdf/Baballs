@@ -14,7 +14,7 @@ set "LIBRARIES=openvr_api.lib user32.lib gdi32.lib kernel32.lib shell32.lib open
 set "ICON_FILE=app.ico"
 
 :: Source files - separate C and C++ files
-set "CPP_SOURCE_FILES=main.cpp overlay_manager.cpp math_utils.cpp dashboard_ui.cpp numpy_io.cpp frame_buffer.cpp routine.cpp rest_server.cpp subprocess.cpp"
+set "CPP_SOURCE_FILES=main.cpp overlay_manager.cpp math_utils.cpp dashboard_ui.cpp numpy_io.cpp frame_buffer.cpp routine.cpp rest_server.cpp subprocess.cpp trainer_wrapper.cpp"
 set "C_SOURCE_FILES=jpeg_stream.c"
 
 :: Check if cl.exe is in PATH

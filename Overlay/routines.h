@@ -9,11 +9,143 @@
 // Extended calibration with irregular grid
 #define CALIBRATION_ROUTINE_EXTENDED "move(0.512,0.487);rest(2.3);move(0.127,0.142);rest(1.6);move(0.483,0.118);rest(1.7);move(0.873,0.138);rest(1.8);move(0.132,0.487);rest(1.5);move(0.512,0.487);rest(1.4);move(0.887,0.523);rest(1.7);move(0.134,0.912);rest(1.6);move(0.523,0.876);rest(1.8);move(0.891,0.879);rest(1.7);move(0.512,0.487);rest(1.3);"
 
-// Horizontal sweep with non-uniform spacing
-#define CALIBRATION_ROUTINE_HORIZONTAL "move(0.512,0.487);rest(2.2);move(0.083,0.512);rest(1.8);move(0.231,0.478);rest(1.3);move(0.342,0.523);rest(1.1);move(0.437,0.491);rest(1.2);move(0.512,0.487);rest(1.4);move(0.627,0.504);rest(1.3);move(0.723,0.471);rest(1.2);move(0.836,0.517);rest(1.3);move(0.917,0.489);rest(1.5);move(0.512,0.487);rest(1.3);"
+// Horizontal sweep with 64 rows of full horizontal scans
+#define CALIBRATION_ROUTINE_HORIZONTAL "smooth(0.5,0.5);rest(2.0);\
+smooth(0.0,0.0);rest(0.3);smooth(1.0,0.0);rest(0.3);\
+smooth(0.0,0.015625);rest(0.3);smooth(1.0,0.015625);rest(0.3);\
+smooth(0.0,0.03125);rest(0.3);smooth(1.0,0.03125);rest(0.3);\
+smooth(0.0,0.046875);rest(0.3);smooth(1.0,0.046875);rest(0.3);\
+smooth(0.0,0.0625);rest(0.3);smooth(1.0,0.0625);rest(0.3);\
+smooth(0.0,0.078125);rest(0.3);smooth(1.0,0.078125);rest(0.3);\
+smooth(0.0,0.09375);rest(0.3);smooth(1.0,0.09375);rest(0.3);\
+smooth(0.0,0.109375);rest(0.3);smooth(1.0,0.109375);rest(0.3);\
+smooth(0.0,0.125);rest(0.3);smooth(1.0,0.125);rest(0.3);\
+smooth(0.0,0.140625);rest(0.3);smooth(1.0,0.140625);rest(0.3);\
+smooth(0.0,0.15625);rest(0.3);smooth(1.0,0.15625);rest(0.3);\
+smooth(0.0,0.171875);rest(0.3);smooth(1.0,0.171875);rest(0.3);\
+smooth(0.0,0.1875);rest(0.3);smooth(1.0,0.1875);rest(0.3);\
+smooth(0.0,0.203125);rest(0.3);smooth(1.0,0.203125);rest(0.3);\
+smooth(0.0,0.21875);rest(0.3);smooth(1.0,0.21875);rest(0.3);\
+smooth(0.0,0.234375);rest(0.3);smooth(1.0,0.234375);rest(0.3);\
+smooth(0.0,0.25);rest(0.3);smooth(1.0,0.25);rest(0.3);\
+smooth(0.0,0.265625);rest(0.3);smooth(1.0,0.265625);rest(0.3);\
+smooth(0.0,0.28125);rest(0.3);smooth(1.0,0.28125);rest(0.3);\
+smooth(0.0,0.296875);rest(0.3);smooth(1.0,0.296875);rest(0.3);\
+smooth(0.0,0.3125);rest(0.3);smooth(1.0,0.3125);rest(0.3);\
+smooth(0.0,0.328125);rest(0.3);smooth(1.0,0.328125);rest(0.3);\
+smooth(0.0,0.34375);rest(0.3);smooth(1.0,0.34375);rest(0.3);\
+smooth(0.0,0.359375);rest(0.3);smooth(1.0,0.359375);rest(0.3);\
+smooth(0.0,0.375);rest(0.3);smooth(1.0,0.375);rest(0.3);\
+smooth(0.0,0.390625);rest(0.3);smooth(1.0,0.390625);rest(0.3);\
+smooth(0.0,0.40625);rest(0.3);smooth(1.0,0.40625);rest(0.3);\
+smooth(0.0,0.421875);rest(0.3);smooth(1.0,0.421875);rest(0.3);\
+smooth(0.0,0.4375);rest(0.3);smooth(1.0,0.4375);rest(0.3);\
+smooth(0.0,0.453125);rest(0.3);smooth(1.0,0.453125);rest(0.3);\
+smooth(0.0,0.46875);rest(0.3);smooth(1.0,0.46875);rest(0.3);\
+smooth(0.0,0.484375);rest(0.3);smooth(1.0,0.484375);rest(0.3);\
+smooth(0.0,0.5);rest(0.3);smooth(1.0,0.5);rest(0.3);\
+smooth(0.0,0.515625);rest(0.3);smooth(1.0,0.515625);rest(0.3);\
+smooth(0.0,0.53125);rest(0.3);smooth(1.0,0.53125);rest(0.3);\
+smooth(0.0,0.546875);rest(0.3);smooth(1.0,0.546875);rest(0.3);\
+smooth(0.0,0.5625);rest(0.3);smooth(1.0,0.5625);rest(0.3);\
+smooth(0.0,0.578125);rest(0.3);smooth(1.0,0.578125);rest(0.3);\
+smooth(0.0,0.59375);rest(0.3);smooth(1.0,0.59375);rest(0.3);\
+smooth(0.0,0.609375);rest(0.3);smooth(1.0,0.609375);rest(0.3);\
+smooth(0.0,0.625);rest(0.3);smooth(1.0,0.625);rest(0.3);\
+smooth(0.0,0.640625);rest(0.3);smooth(1.0,0.640625);rest(0.3);\
+smooth(0.0,0.65625);rest(0.3);smooth(1.0,0.65625);rest(0.3);\
+smooth(0.0,0.671875);rest(0.3);smooth(1.0,0.671875);rest(0.3);\
+smooth(0.0,0.6875);rest(0.3);smooth(1.0,0.6875);rest(0.3);\
+smooth(0.0,0.703125);rest(0.3);smooth(1.0,0.703125);rest(0.3);\
+smooth(0.0,0.71875);rest(0.3);smooth(1.0,0.71875);rest(0.3);\
+smooth(0.0,0.734375);rest(0.3);smooth(1.0,0.734375);rest(0.3);\
+smooth(0.0,0.75);rest(0.3);smooth(1.0,0.75);rest(0.3);\
+smooth(0.0,0.765625);rest(0.3);smooth(1.0,0.765625);rest(0.3);\
+smooth(0.0,0.78125);rest(0.3);smooth(1.0,0.78125);rest(0.3);\
+smooth(0.0,0.796875);rest(0.3);smooth(1.0,0.796875);rest(0.3);\
+smooth(0.0,0.8125);rest(0.3);smooth(1.0,0.8125);rest(0.3);\
+smooth(0.0,0.828125);rest(0.3);smooth(1.0,0.828125);rest(0.3);\
+smooth(0.0,0.84375);rest(0.3);smooth(1.0,0.84375);rest(0.3);\
+smooth(0.0,0.859375);rest(0.3);smooth(1.0,0.859375);rest(0.3);\
+smooth(0.0,0.875);rest(0.3);smooth(1.0,0.875);rest(0.3);\
+smooth(0.0,0.890625);rest(0.3);smooth(1.0,0.890625);rest(0.3);\
+smooth(0.0,0.90625);rest(0.3);smooth(1.0,0.90625);rest(0.3);\
+smooth(0.0,0.921875);rest(0.3);smooth(1.0,0.921875);rest(0.3);\
+smooth(0.0,0.9375);rest(0.3);smooth(1.0,0.9375);rest(0.3);\
+smooth(0.0,0.953125);rest(0.3);smooth(1.0,0.953125);rest(0.3);\
+smooth(0.0,0.96875);rest(0.3);smooth(1.0,0.96875);rest(0.3);\
+smooth(0.0,0.984375);rest(0.3);smooth(1.0,0.984375);rest(0.3);\
+smooth(0.0,1.0);rest(0.3);smooth(1.0,1.0);rest(0.3);\
+smooth(0.5,0.5);rest(1.4);"
 
-// Vertical sweep with non-uniform spacing
-#define CALIBRATION_ROUTINE_VERTICAL "move(0.512,0.487);rest(2.1);move(0.489,0.076);rest(1.7);move(0.523,0.218);rest(1.2);move(0.496,0.327);rest(1.3);move(0.517,0.419);rest(1.1);move(0.512,0.487);rest(1.4);move(0.493,0.612);rest(1.3);move(0.527,0.736);rest(1.2);move(0.503,0.823);rest(1.3);move(0.519,0.927);rest(1.6);move(0.512,0.487);rest(1.2);"
+// Vertical sweep with 64 columns of full vertical scans
+#define CALIBRATION_ROUTINE_VERTICAL "smooth(0.5,0.5);rest(2.0);\
+smooth(0.0,0.0);rest(0.3);smooth(0.0,1.0);rest(0.3);\
+smooth(0.015625,0.0);rest(0.3);smooth(0.015625,1.0);rest(0.3);\
+smooth(0.03125,0.0);rest(0.3);smooth(0.03125,1.0);rest(0.3);\
+smooth(0.046875,0.0);rest(0.3);smooth(0.046875,1.0);rest(0.3);\
+smooth(0.0625,0.0);rest(0.3);smooth(0.0625,1.0);rest(0.3);\
+smooth(0.078125,0.0);rest(0.3);smooth(0.078125,1.0);rest(0.3);\
+smooth(0.09375,0.0);rest(0.3);smooth(0.09375,1.0);rest(0.3);\
+smooth(0.109375,0.0);rest(0.3);smooth(0.109375,1.0);rest(0.3);\
+smooth(0.125,0.0);rest(0.3);smooth(0.125,1.0);rest(0.3);\
+smooth(0.140625,0.0);rest(0.3);smooth(0.140625,1.0);rest(0.3);\
+smooth(0.15625,0.0);rest(0.3);smooth(0.15625,1.0);rest(0.3);\
+smooth(0.171875,0.0);rest(0.3);smooth(0.171875,1.0);rest(0.3);\
+smooth(0.1875,0.0);rest(0.3);smooth(0.1875,1.0);rest(0.3);\
+smooth(0.203125,0.0);rest(0.3);smooth(0.203125,1.0);rest(0.3);\
+smooth(0.21875,0.0);rest(0.3);smooth(0.21875,1.0);rest(0.3);\
+smooth(0.234375,0.0);rest(0.3);smooth(0.234375,1.0);rest(0.3);\
+smooth(0.25,0.0);rest(0.3);smooth(0.25,1.0);rest(0.3);\
+smooth(0.265625,0.0);rest(0.3);smooth(0.265625,1.0);rest(0.3);\
+smooth(0.28125,0.0);rest(0.3);smooth(0.28125,1.0);rest(0.3);\
+smooth(0.296875,0.0);rest(0.3);smooth(0.296875,1.0);rest(0.3);\
+smooth(0.3125,0.0);rest(0.3);smooth(0.3125,1.0);rest(0.3);\
+smooth(0.328125,0.0);rest(0.3);smooth(0.328125,1.0);rest(0.3);\
+smooth(0.34375,0.0);rest(0.3);smooth(0.34375,1.0);rest(0.3);\
+smooth(0.359375,0.0);rest(0.3);smooth(0.359375,1.0);rest(0.3);\
+smooth(0.375,0.0);rest(0.3);smooth(0.375,1.0);rest(0.3);\
+smooth(0.390625,0.0);rest(0.3);smooth(0.390625,1.0);rest(0.3);\
+smooth(0.40625,0.0);rest(0.3);smooth(0.40625,1.0);rest(0.3);\
+smooth(0.421875,0.0);rest(0.3);smooth(0.421875,1.0);rest(0.3);\
+smooth(0.4375,0.0);rest(0.3);smooth(0.4375,1.0);rest(0.3);\
+smooth(0.453125,0.0);rest(0.3);smooth(0.453125,1.0);rest(0.3);\
+smooth(0.46875,0.0);rest(0.3);smooth(0.46875,1.0);rest(0.3);\
+smooth(0.484375,0.0);rest(0.3);smooth(0.484375,1.0);rest(0.3);\
+smooth(0.5,0.0);rest(0.3);smooth(0.5,1.0);rest(0.3);\
+smooth(0.515625,0.0);rest(0.3);smooth(0.515625,1.0);rest(0.3);\
+smooth(0.53125,0.0);rest(0.3);smooth(0.53125,1.0);rest(0.3);\
+smooth(0.546875,0.0);rest(0.3);smooth(0.546875,1.0);rest(0.3);\
+smooth(0.5625,0.0);rest(0.3);smooth(0.5625,1.0);rest(0.3);\
+smooth(0.578125,0.0);rest(0.3);smooth(0.578125,1.0);rest(0.3);\
+smooth(0.59375,0.0);rest(0.3);smooth(0.59375,1.0);rest(0.3);\
+smooth(0.609375,0.0);rest(0.3);smooth(0.609375,1.0);rest(0.3);\
+smooth(0.625,0.0);rest(0.3);smooth(0.625,1.0);rest(0.3);\
+smooth(0.640625,0.0);rest(0.3);smooth(0.640625,1.0);rest(0.3);\
+smooth(0.65625,0.0);rest(0.3);smooth(0.65625,1.0);rest(0.3);\
+smooth(0.671875,0.0);rest(0.3);smooth(0.671875,1.0);rest(0.3);\
+smooth(0.6875,0.0);rest(0.3);smooth(0.6875,1.0);rest(0.3);\
+smooth(0.703125,0.0);rest(0.3);smooth(0.703125,1.0);rest(0.3);\
+smooth(0.71875,0.0);rest(0.3);smooth(0.71875,1.0);rest(0.3);\
+smooth(0.734375,0.0);rest(0.3);smooth(0.734375,1.0);rest(0.3);\
+smooth(0.75,0.0);rest(0.3);smooth(0.75,1.0);rest(0.3);\
+smooth(0.765625,0.0);rest(0.3);smooth(0.765625,1.0);rest(0.3);\
+smooth(0.78125,0.0);rest(0.3);smooth(0.78125,1.0);rest(0.3);\
+smooth(0.796875,0.0);rest(0.3);smooth(0.796875,1.0);rest(0.3);\
+smooth(0.8125,0.0);rest(0.3);smooth(0.8125,1.0);rest(0.3);\
+smooth(0.828125,0.0);rest(0.3);smooth(0.828125,1.0);rest(0.3);\
+smooth(0.84375,0.0);rest(0.3);smooth(0.84375,1.0);rest(0.3);\
+smooth(0.859375,0.0);rest(0.3);smooth(0.859375,1.0);rest(0.3);\
+smooth(0.875,0.0);rest(0.3);smooth(0.875,1.0);rest(0.3);\
+smooth(0.890625,0.0);rest(0.3);smooth(0.890625,1.0);rest(0.3);\
+smooth(0.90625,0.0);rest(0.3);smooth(0.90625,1.0);rest(0.3);\
+smooth(0.921875,0.0);rest(0.3);smooth(0.921875,1.0);rest(0.3);\
+smooth(0.9375,0.0);rest(0.3);smooth(0.9375,1.0);rest(0.3);\
+smooth(0.953125,0.0);rest(0.3);smooth(0.953125,1.0);rest(0.3);\
+smooth(0.96875,0.0);rest(0.3);smooth(0.96875,1.0);rest(0.3);\
+smooth(0.984375,0.0);rest(0.3);smooth(0.984375,1.0);rest(0.3);\
+smooth(1.0,0.0);rest(0.3);smooth(1.0,1.0);rest(0.3);\
+smooth(0.5,0.5);rest(1.5);"
 
 // Diagonal calibration with varied points
 #define CALIBRATION_ROUTINE_DIAGONAL_1 "move(0.512,0.487);rest(2.2);move(0.127,0.142);rest(1.7);move(0.214,0.243);rest(1.3);move(0.323,0.319);rest(1.1);move(0.417,0.421);rest(1.2);move(0.512,0.487);rest(1.4);move(0.624,0.597);rest(1.3);move(0.718,0.693);rest(1.1);move(0.827,0.813);rest(1.2);move(0.891,0.879);rest(1.6);move(0.512,0.487);rest(1.3);"
@@ -78,8 +210,6 @@ moveDepth(0.5,0.5,0.25,3.0,4.0);rest(1.5);\
 moveDepth(0.5,0.5,3.0,1.0,2.5);rest(1.5);\
 moveDepth(0.5,0.5,1.0,0.5,2.0);rest(1.5);\
 moveDepth(0.5,0.5,0.5,2.0,3.0);rest(1.5);"
-
-
 
 // List of all calibration routines for easy access
 #define ALL_ROUTINES { \
