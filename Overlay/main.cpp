@@ -442,8 +442,9 @@ int main(int argc, char* argv[])
         std::string sIsCalibrationComplete = std::to_string(g_OverlayManager.g_routineController.isComplete() && g_isTrained);
         std::string sCurrentOpIndex = std::to_string(g_OverlayManager.g_routineController.getCurrentOperationIndex());
         std::string sMaxOpIndex = std::to_string(g_OverlayManager.g_routineController.getTotalOperationCount());
+        std::string sIstrained = std::to_string(g_isTrained);
 
-        return "{\"result\":\"ok\", \"running\":\""+sRunning+"\", \"recording\":\""+sRecording+"\", \"calibrationComplete\":\""+sIsCalibrationComplete+"\", \"currentIndex\":"+sCurrentOpIndex+", \"maxIndex\":"+sMaxOpIndex+"}";
+        return "{\"result\":\"ok\", \"running\":\""+sRunning+"\", \"recording\":\""+sRecording+"\", \"calibrationComplete\":\""+sIsCalibrationComplete+"\", \"isTrained\":\""+sIstrained+"\", \"currentIndex\":"+sCurrentOpIndex+", \"maxIndex\":"+sMaxOpIndex+"}";
     });
 
     server.register_handler("/settings", [](const std::unordered_map<std::string, std::string>& params){
@@ -463,13 +464,17 @@ int main(int argc, char* argv[])
             printf("\n");
             frameBufferRight.setURL(params.at("left").c_str());
             frameBufferLeft.setURL(params.at("left").c_str());
+
+            printf("Init eye connection...\n");
             
             initEyeConnections(&frameBufferLeft, &frameBufferRight);
             
+            printf("Get frame copy...\n");
             uint64_t time;
             int* image = frameBufferLeft.getFrameCopy(&width, &height, &time);
             free(image);
             
+            printf("Got!\n");
             sWidth = std::to_string(width);
             sHeight = std::to_string(height);
         }catch (const std::exception& e) {
@@ -715,6 +720,13 @@ int main(int argc, char* argv[])
             if(OverlayManager::s_routineState == FLAG_ROUTINE_COMPLETE){
                 g_Recording = false;
                 closeCaptureFile(captureFile);
+
+                if(std::rename(filename, "./capture.bin") != 0) {
+                    printf("Error renaming capture file: %s\n", strerror(errno));
+                } else {
+                    printf("Successfully renamed capture file to ./capture.bin\n");
+                }
+
                 g_Trainer.start(filename, g_outputModelPath,
                     [](const std::string& output){
                         printf("trainer output: %s", output.c_str());

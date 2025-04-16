@@ -562,6 +562,7 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
         
         free(jpeg_data);
         
+        printf("Decoded %u %u jpeg.\n", w, h);
         // Set output parameters
         *width = w;
         *height = h;

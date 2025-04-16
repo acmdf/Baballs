@@ -212,9 +212,19 @@ void printParameterInfo(OrtTrainingSession* training_session, const OrtApi* g_or
     //printf("================================\n");
 }
 
-int main() {
-    // Capture file path - adjust as needed
+int main(int argc, char* argv[]) {
+    // Default file paths
     std::string capture_file = "capture.bin";
+    std::string onnx_model_path = "tuned_model.onnx";
+    
+    // Check if command line arguments are provided
+    if (argc >= 2) {
+        capture_file = argv[1];  // First argument is the capture file
+    }
+    
+    if (argc >= 3) {
+        onnx_model_path = argv[2];   // Second argument is the output file
+    }
     
     // Load the capture file
     auto frames = loadCaptureFile(capture_file);
@@ -608,7 +618,6 @@ int main() {
         printf("Final checkpoint saved successfully\n");
     }*/
 
-    std::string onnx_model_path = "./tuned_model.onnx";
     std::wstring wide_onnx_path = to_wstring(onnx_model_path);
 
     // Define the output names for your inference model
