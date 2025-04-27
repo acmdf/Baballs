@@ -7,15 +7,20 @@
 #include <algorithm>
 #include <regex>
 #include <iostream>
+#include <random>
 
 // Constants for angle conversion
 constexpr float MAX_YAW_ANGLE = 45.0f;    // Maximum yaw angle in degrees
 constexpr float MAX_PITCH_ANGLE = 30.0f;  // Maximum pitch angle in degrees
 
+bool RoutineController::m_stepWritten = false;
+
 RoutineController::RoutineController(float maxMoveSpeed)
     : m_currentOpIndex(0)
     , m_routineStarted(false)
     , m_maxMoveSpeed(maxMoveSpeed)
+    , m_elapsedTime(0.0)
+    , m_lastRandomPointTime(0.0)
 {
     // Initialize positions
     TargetPosition current;
@@ -27,6 +32,10 @@ RoutineController::RoutineController(float maxMoveSpeed)
 
     m_currentPosition = current;
     m_targetPosition = target;
+}
+
+float getRandomFloat() {
+    return -1.0f + 2.0f * (static_cast<float>(rand()) / RAND_MAX);
 }
 
 /**
@@ -84,6 +93,8 @@ bool RoutineController::parseRoutine(const std::string& routineStr)
 }
 
 bool RoutineController::loadRoutine(int routineIndex) {
+
+    printf("Loading routine %i\n", routineIndex);
     // Array of routine strings
     const char* routines[] = ALL_ROUTINES;
     
@@ -177,6 +188,8 @@ TargetPosition RoutineController::step()
     auto currentTime = std::chrono::high_resolution_clock::now();
     float deltaTime = std::chrono::duration<float>(currentTime - m_lastUpdateTime).count();
     m_lastUpdateTime = currentTime;
+
+    m_elapsedTime += (double_t) deltaTime;
     
     // If we have operations to process
     if (!m_operations.empty() && m_currentOpIndex < m_operations.size()) {
@@ -204,6 +217,30 @@ TargetPosition RoutineController::step()
 
 TargetPosition RoutineController::calculatePosition()
 {
+
+    // new random sparse point training
+    if(m_elapsedTime > 60) { // 60 seconds of no labelled data
+        double_t timeSinceLast = m_elapsedTime - m_lastRandomPointTime;
+        if(timeSinceLast > 3){
+            m_lastRandomPointTime = m_elapsedTime;
+            m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
+            m_currentPosition.pitch = getRandomFloat() * 32.0f;
+            m_currentPosition.yaw = getRandomFloat() * 32.0f;
+            m_currentPosition.state = FLAG_IN_MOVEMENT;
+            printf("Picked new position %f,%f\n", m_currentPosition.pitch, m_currentPosition.yaw);
+        }else if(timeSinceLast > 2){
+            m_currentPosition.state = FLAG_RESTING;
+            RoutineController::m_stepWritten = false;
+        }
+        return m_currentPosition;
+    }else{ // standing position, 1 minute of "move your eyes naturally, blink/squint/etc anything that doesnt happen during the next stage"
+        m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
+        m_currentPosition.pitch = 0.0;
+        m_currentPosition.yaw = 0.0;
+        RoutineController::m_stepWritten = true;
+        m_currentPosition.state = FLAG_IN_MOVEMENT;
+    }
+
     // If routine is complete or hasn't started, return current position
     if (m_operations.empty() || m_currentOpIndex >= m_operations.size()) {
         return m_currentPosition;
@@ -326,7 +363,7 @@ void RoutineController::reset()
 
 bool RoutineController::isComplete() const
 {
-    return !m_operations.empty() && m_currentOpIndex >= m_operations.size();
+    return m_elapsedTime > 60 * 4; // 4 minutes of calibration //!m_operations.empty() && m_currentOpIndex >= m_operations.size();
 }
 
 size_t RoutineController::getCurrentOperationIndex() const

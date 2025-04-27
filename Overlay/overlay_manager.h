@@ -58,6 +58,7 @@ public:
     static float s_routinePitch;
     static float s_routineYaw;
     static float s_routineDistance;
+    static bool s_routineSampleWritten;
     static uint32_t s_routineState;
 
     RoutineController g_routineController;

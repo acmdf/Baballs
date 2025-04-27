@@ -48,6 +48,7 @@ struct TargetPosition {
     float pitch;      // Vertical angle
     float distance;   // Distance from viewer in meters
     uint32_t state;   // Current state flags
+    bool written;     // has this sample been written?
 };
 
 // Routine parser and controller
@@ -81,6 +82,7 @@ public:
     
     // Get available routine names
     static std::vector<std::string> getRoutineNames();
+    static bool m_stepWritten;
 
 private:
     // Operation list for the current routine
@@ -98,6 +100,9 @@ private:
     
     // Configuration
     float m_maxMoveSpeed; // Maximum movement speed in units per second
+
+    double_t m_elapsedTime;
+    double_t m_lastRandomPointTime;
     
     // Helper methods
     bool parseOperation(const std::string& opStr);

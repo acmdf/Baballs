@@ -182,13 +182,17 @@ int* FrameBuffer::resizeFrame(int* sourcePixels, int sourceWidth, int sourceHeig
 }
 
 void FrameBuffer::updateLoop() {
+    //printf("Update loop 1\n");
     while (running) {
         // Decode a new frame
         int width, height;
+        //printf("Update loop 2\n");
         int* pixels = DecodeFrame(stream, &width, &height);
+        //printf("Update loop 3\n");
         uint64_t time = current_time_ms_2();
-        
+        //printf("Update loop 4\n");
         if (pixels) {
+            //printf("Update loop 5\n");
             // Get back buffer index
             int backBuffer = 1 - frontBuffer;
             
@@ -228,7 +232,7 @@ void FrameBuffer::updateLoop() {
             // Swap buffers (thread-safe operation)
             swapBuffers();
         }
-        
+        //printf("Update loop 6\n");
         // Sleep for a while
         std::this_thread::sleep_for(std::chrono::milliseconds(updateIntervalMs));
     }
@@ -251,6 +255,7 @@ int* FrameBuffer::getFrameCopy(int* width, int* height, uint64_t* time) {
     if (!front.pixels) {
         *width = *height = 0;
         *time = 0;
+        printf("Get Frame Copy returned nothing!\n");
         return nullptr;
     }
     

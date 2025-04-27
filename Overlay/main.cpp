@@ -454,16 +454,16 @@ int main(int argc, char* argv[])
     server.register_handler("/start_cameras", [&frameBufferLeft, &frameBufferRight](const std::unordered_map<std::string, std::string>& params){
         printf("Got start_cameras\n");
         int width, height;
-        printf("Param counts: %i %i\n", params.count("left"), params.count("left"));
+        printf("Param counts: %i %i\n", params.count("left"), params.count("right"));
         std::string sWidth = std::to_string(0);
         std::string sHeight = std::to_string(0);
         try{
             printf(params.at("left").c_str());
             printf("\n");
-            printf(params.at("left").c_str());
+            printf(params.at("right").c_str());
             printf("\n");
             frameBufferRight.setURL(params.at("left").c_str());
-            frameBufferLeft.setURL(params.at("left").c_str());
+            frameBufferLeft.setURL(params.at("right").c_str());
 
             printf("Init eye connection...\n");
             
@@ -484,19 +484,24 @@ int main(int argc, char* argv[])
     });
 
     server.register_handler("/start_calibration", [](const std::unordered_map<std::string, std::string>& params){
-        // params:
-        //   onnx_filename: the file to write the trained checkpoint to
-        //   routine_id: the routine id to run
-        // check /status until its complete
-
-        //////////   mode: basic / complete / etc (if unspecified assumes complete)
-        
-
         if (params.count("routine_id") == 0 || params.count("onnx_filename") == 0) {
             return "{\"result\":\"error\", \"message\":\"please specify a routine_id and onnx_filename\"}";
         }
 
-        g_outputModelPath = params.at("onnx_filename");
+        std::string decodedPath = params.at("onnx_filename");
+        size_t pos = 0;
+        while ((pos = decodedPath.find('%', pos)) != std::string::npos) {
+            if (pos + 2 < decodedPath.length()) {
+                int hexValue;
+                std::istringstream iss(decodedPath.substr(pos + 1, 2));
+                iss >> std::hex >> hexValue;
+                decodedPath.replace(pos, 3, 1, static_cast<char>(hexValue));
+            } else {
+                break;
+            }
+        }
+        
+        g_outputModelPath = decodedPath;    
 
         g_OverlayManager.StartRoutine((uint32_t) std::stoi(params.at("routine_id")));
 
@@ -737,34 +742,46 @@ int main(int argc, char* argv[])
                     }
                 );
             }else{
-                int width, height;
-                uint64_t time;
-                int* imageLeft = frameBufferLeft.getFrameCopy(&width, &height, &time);
-                int* imageRight = frameBufferRight.getFrameCopy(&width, &height, &time);
-                uint64_t now = current_time_ms();
+                if(true){//if(OverlayManager::s_routineState == FLAG_RESTING && !RoutineController::m_stepWritten){
+                    //OverlayManager::s_routineState = FLAG_IN_MOVEMENT;
+                    //RoutineController::m_stepWritten = true;
+                    int width, height;
+                    uint64_t time;
+                    int* imageLeft = frameBufferLeft.getFrameCopy(&width, &height, &time);
+                    int* imageRight = frameBufferRight.getFrameCopy(&width, &height, &time);
+                    uint64_t now = current_time_ms();
 
-                memcpy(frame.image_data_left, imageLeft, width*height*sizeof(int));
-                memcpy(frame.image_data_right, imageRight, width*height*sizeof(int));
+                    memcpy(frame.image_data_left, imageLeft, width*height*sizeof(int));
+                    memcpy(frame.image_data_right, imageRight, width*height*sizeof(int));
 
-                frame.routinePitch = OverlayManager::s_routinePitch;//(int32_t)(OverlayManager::s_routinePitch * FLOAT_TO_INT_CONSTANT);
-                frame.routineYaw = OverlayManager::s_routineYaw;//(int32_t)(OverlayManager::s_routineYaw * FLOAT_TO_INT_CONSTANT);
-                frame.routineDistance = OverlayManager::s_routineDistance;//(int32_t)(OverlayManager::s_routineDistance * FLOAT_TO_INT_CONSTANT);
-                frame.routineState = OverlayManager::s_routineState;//(uint32_t)OverlayManager::s_routineState;
+                    frame.routinePitch = OverlayManager::s_routinePitch;//(int32_t)(OverlayManager::s_routinePitch * FLOAT_TO_INT_CONSTANT);
+                    frame.routineYaw = OverlayManager::s_routineYaw;//(int32_t)(OverlayManager::s_routineYaw * FLOAT_TO_INT_CONSTANT);
+                    frame.routineDistance = OverlayManager::s_routineDistance;//(int32_t)(OverlayManager::s_routineDistance * FLOAT_TO_INT_CONSTANT);
 
-                printf("Routine position: %f %f, time diff: %I64u ", frame.routinePitch, frame.routineYaw, now - time);
-                print_active_flags(OverlayManager::s_routineState);
-                printf("\n");
 
-                //make this a int64?//
-                frame.timestampLow = (uint32_t)(now & 0xFFFFFFFF);
-                frame.timestampHigh = (uint32_t)((now >> 32) & 0xFFFFFFFF);
+                    if(!RoutineController::m_stepWritten){
+                        RoutineController::m_stepWritten = true;
+                        frame.routineState = FLAG_RESTING;
+                    }else{
+                        frame.routineState = FLAG_IN_MOVEMENT;
+                    }
+                    //frame.routineState = OverlayManager::s_routineState;//(uint32_t)OverlayManager::s_routineState;
 
-                if (!writeCaptureFrame(captureFile, &frame, sizeof(frame))) {
-                    printf("ERROR: Failed to write frame! \n");
+                    printf("Routine position: %f %f, time diff: %I64u ", frame.routinePitch, frame.routineYaw, now - time);
+                    print_active_flags(OverlayManager::s_routineState);
+                    printf("\n");
+
+                    //make this a int64?//
+                    frame.timestampLow = (uint32_t)(now & 0xFFFFFFFF);
+                    frame.timestampHigh = (uint32_t)((now >> 32) & 0xFFFFFFFF);
+
+                    if (!writeCaptureFrame(captureFile, &frame, sizeof(frame))) {
+                        printf("ERROR: Failed to write frame! \n");
+                    }
+                    
+                    free(imageLeft); 
+                    free(imageRight);
                 }
-                
-                free(imageLeft); 
-                free(imageRight);
             }
         }
 
