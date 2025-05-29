@@ -14,13 +14,14 @@
 #include <sstream>
 #include <iomanip>
 #ifdef _WIN32
+    #include <conio.h>
     #include <windows.h>
 #else
     #include <sys/time.h>
     #include <time.h>
 #endif
-#include <openvr.h>
-#include <conio.h>
+#include <openvr/openvr.h>
+
 
 #include "overlay_manager.h"
 #include "math_utils.h"
@@ -396,7 +397,7 @@ void initEyeConnections(FrameBuffer* frameBufferLeft, FrameBuffer* frameBufferRi
         unsigned char* image = frameBufferLeft->getFrameCopy(&width, &height, &time, &size);
         if(width < 1 || height < 1){
             printf("Waiting for valid image data from both eyes...\n");
-            Sleep(1000); /* TODO: universal sleep (this is windows.h) */
+            sleep(1000); /* TODO: universal sleep (this is windows.h) */
             free(image);
             continue;
         }
@@ -405,7 +406,7 @@ void initEyeConnections(FrameBuffer* frameBufferLeft, FrameBuffer* frameBufferRi
         image = frameBufferRight->getFrameCopy(&width, &height, &time, &size);
         if(width < 1 || height < 1){
             printf("Waiting for valid image data from both eyes...\n");
-            Sleep(1000); /* TODO: universal sleep (this is windows.h) */
+            sleep(1000); /* TODO: universal sleep (this is windows.h) */
             free(image);
             continue;
         }
@@ -1236,8 +1237,8 @@ int main(int argc, char* argv[])
         g_DashboardUI.SetStatusText(statusText);
 
         
-        
-        Sleep(10);
+
+        sleep(10);
     }
 
     closeCaptureFile(captureFile);
@@ -1259,71 +1260,7 @@ int main(int argc, char* argv[])
 
 void ProcessKeyboardInput()
 {
-    // Check for key presses
-    // Arrow keys: adjust target position
-    // Space: lock/unlock target position
-    // ESC: exit program
-    
-    // Left arrow - decrease yaw (move target left)
-    if (GetAsyncKeyState(VK_LEFT) & 0x8000)
-    {
-        g_fTargetYawOffset -= TARGET_MOVEMENT_SPEED;
-    }
-    
-    // Right arrow - increase yaw (move target right)
-    if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
-    {
-        g_fTargetYawOffset += TARGET_MOVEMENT_SPEED;
-    }
-    
-    // Up arrow - increase pitch (move target up)
-    if (GetAsyncKeyState(VK_UP) & 0x8000)
-    {
-        g_fTargetPitchOffset += TARGET_MOVEMENT_SPEED;
-    }
-    
-    // Down arrow - decrease pitch (move target down)
-    if (GetAsyncKeyState(VK_DOWN) & 0x8000)
-    {
-        g_fTargetPitchOffset -= TARGET_MOVEMENT_SPEED;
-    }
-    
-    // Space - toggle target lock
-    static bool spaceWasPressed = false;
-    bool spaceIsPressed = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
-    
-    if (spaceIsPressed && !spaceWasPressed)
-    {
-        g_bTargetLocked = !g_bTargetLocked;
-        if (g_bTargetLocked)
-        {
-            std::cout << "\nTarget position locked at Yaw: " << g_fTargetYawOffset 
-                      << "°, Pitch: " << g_fTargetPitchOffset << "°" << std::endl;
-        }
-        else
-        {
-            std::cout << "\nTarget position unlocked" << std::endl;
-        }
-    }
-    spaceWasPressed = spaceIsPressed;
-    
-    // R key - reset target position
-    static bool rWasPressed = false;
-    bool rIsPressed = (GetAsyncKeyState('R') & 0x8000) != 0;
-    
-    if (rIsPressed && !rWasPressed)
-    {
-        g_fTargetYawOffset = 0.0f;
-        g_fTargetPitchOffset = 0.0f;
-        std::cout << "\nTarget position reset to center" << std::endl;
-    }
-    rWasPressed = rIsPressed;
-    
-    // ESC - exit program
-    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
-    {
-        g_bProgramRunning = false;
-    }
+   
 }
 
 void UpdateTargetPosition()

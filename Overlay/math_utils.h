@@ -1,7 +1,7 @@
 #ifndef MATH_UTILS_H
 #define MATH_UTILS_H
 
-#include <openvr.h>
+#include <openvr/openvr.h>
 
 /* Vector structure */
 struct MU_Vector3 {

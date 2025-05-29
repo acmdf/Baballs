@@ -1,6 +1,6 @@
 #pragma once
 
-#include <openvr.h>
+#include <openvr/openvr.h>
 #include <windows.h>
 #include <gl/GL.h>
 #include <string>

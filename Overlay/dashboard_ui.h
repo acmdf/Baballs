@@ -1,11 +1,13 @@
 #pragma once
 #include "stb_truetype.h"
-#include <openvr.h>
+#include <openvr/openvr.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <functional>
-#include <Windows.h>
+#ifdef _WIN32
+    #include <Windows.h>
+#endif
 #include <GL/gl.h>
 
 // Simple button class for dashboard UI

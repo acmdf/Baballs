@@ -1,5 +1,5 @@
 #pragma once
-
+#include <cstdint>
 
 typedef struct CaptureFrame {
 #ifdef _MSC_VER
@@ -33,10 +33,5 @@ typedef struct CaptureFrame {
 
 #ifdef _MSC_VER
     #pragma pack(pop)
-#else
-} __attribute__((packed)) CaptureFrame;
 #endif
-
-#ifdef _MSC_VER
 } CaptureFrame;
-#endif

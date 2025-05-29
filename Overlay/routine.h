@@ -101,9 +101,9 @@ public:
     // Get available routine names
     static std::vector<std::string> getRoutineNames();
     static bool m_stepWritten;
-    static double_t m_globalAdvancedTime;
+    static double m_globalAdvancedTime;
     static int m_routineStage;
-    static double_t m_stageStartTime;
+    static double m_stageStartTime;
 
 private:
     // Operation list for the current routine
@@ -122,8 +122,8 @@ private:
     // Configuration
     float m_maxMoveSpeed; // Maximum movement speed in units per second
 
-    double_t m_elapsedTime;
-    double_t m_lastRandomPointTime;
+    double m_elapsedTime;
+    double m_lastRandomPointTime;
     
     // Helper methods
     bool parseOperation(const std::string& opStr);
