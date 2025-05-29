@@ -4,15 +4,16 @@ setlocal enabledelayedexpansion
 echo Compiling MNIST Training with ONNX Runtime...
 
 :: Configuration variables - Modify these to match your environment
-set "OUTPUT_EXE=trainer.exe"
+set "OUTPUT_EXE=calibration_runner.exe"
 set "VS_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
 set "VS_ARCHITECTURE=x64"
 set "ONNXRUNTIME_PATH=C:\ortt" 
-set "LIBRARIES=onnxruntime.lib"
+set "LIBRARIES=turbojpeg.lib onnxruntime.lib"
 set "ICON_FILE=app.ico"
+set "TURBOJPEG_PATH=C:\libjpeg-turbo64"
 
 :: Source files
-set "CPP_SOURCE_FILES=trainer.cpp numpy_io.cpp"
+set "CPP_SOURCE_FILES=trainer.cpp numpy_io.cpp capture_reader.cpp"
 
 :: Check if cl.exe is in PATH
 where cl.exe >nul 2>nul
@@ -51,9 +52,9 @@ echo Compiling resource file...
 rc.exe /nologo build\app.rc
 
 :: Define compiler and linker flags
-set "COMMON_FLAGS=/nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DWIN32 /D_WINDOWS /std:c++17 /EHsc"
-set "INCLUDE_DIRS=/I"%ONNXRUNTIME_PATH%\include""
-set "LIBRARY_DIRS=/LIBPATH:"%ONNXRUNTIME_PATH%\lib""
+set "COMMON_FLAGS=/nologo /W3 /Od /D_CRT_SECURE_NO_WARNINGS /DWIN32 /D_WINDOWS /std:c++17 /EHsc"
+set "INCLUDE_DIRS=/I"%TURBOJPEG_PATH%\include" /I"%ONNXRUNTIME_PATH%\include""
+set "LIBRARY_DIRS=/LIBPATH:"%TURBOJPEG_PATH%\lib" /LIBPATH:"%ONNXRUNTIME_PATH%\lib""
 
 :: Check if CUDA is available and add its support if needed
 if exist "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA" (
@@ -66,7 +67,7 @@ if exist "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA" (
 
 cls
 if exist "build_helper.c" (
-    cl.exe /nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS build_helper.c /Fe:"bhelp.exe"
+    cl.exe /nologo /W3 /Od /D_CRT_SECURE_NO_WARNINGS build_helper.c /Fe:"bhelp.exe"
     echo.
 )
 

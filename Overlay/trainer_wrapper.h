@@ -3,6 +3,7 @@
 
 #include <string>
 #include <functional>
+#include "trainer_progress.h"
 
 /**
  * @brief TrainerWrapper class for managing the training process
@@ -13,6 +14,7 @@
 class TrainerWrapper {
 public:
     using OutputCallback = std::function<void(const std::string&)>;
+    using ProgressCallback = std::function<void(const TrainerProgress&)>;
     using CompletionCallback = std::function<void()>;
 
     /**
@@ -20,7 +22,7 @@ public:
      * 
      * @param trainerPath Path to the trainer executable (defaults to "trainer.exe")
      */
-    explicit TrainerWrapper(const std::string& trainerPath = "trainer.exe");
+    explicit TrainerWrapper(const std::string& trainerPath = "calibration_runner.exe");
 
     /**
      * @brief Start the training process
@@ -35,6 +37,7 @@ public:
         const std::string& datasetFile,
         const std::string& outputFile,
         OutputCallback onOutput,
+        ProgressCallback onProgress,
         CompletionCallback onCompleted
     );
 
@@ -45,9 +48,17 @@ public:
      */
     bool isRunning() const;
 
+    /**
+     * @brief Get current training progress
+     * 
+     * @return const TrainerProgress& Current progress information
+     */
+    const TrainerProgress& getProgress() const;
+
 private:
     std::string m_trainerPath;
     bool m_isRunning;
+    TrainerProgressParser m_progressParser;
 };
 
 #endif // TRAINER_WRAPPER_H

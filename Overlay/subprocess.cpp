@@ -84,6 +84,9 @@ bool ProcessRunner::spawnProcessWindows(
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
 
+    // Debug: Print command line
+    printf("DEBUG: Attempting to spawn process: %s\n", cmdLine.c_str());
+
     // Create the child process
     BOOL success = CreateProcessA(
         NULL,                   // No module name (use command line)
@@ -98,11 +101,15 @@ bool ProcessRunner::spawnProcessWindows(
         &pi                     // Pointer to PROCESS_INFORMATION
     );
 
+    printf("DEBUG: CreateProcessA result: %s\n", success ? "SUCCESS" : "FAILED");
+
     // Close pipe write-ends as we don't need them
     CloseHandle(stdoutWrite);
     CloseHandle(stderrWrite);
 
     if (!success) {
+        DWORD error = GetLastError();
+        printf("DEBUG: CreateProcessA failed with error code: %lu\n", error);
         CloseHandle(stdoutRead);
         CloseHandle(stderrRead);
         return false;
@@ -110,31 +117,47 @@ bool ProcessRunner::spawnProcessWindows(
 
     // Create threads to read from pipes
     std::thread stdoutThread([stdoutRead, onStdOut]() {
+        printf("DEBUG: stdout reading thread started\n");
         char buffer[4096];
         DWORD bytesRead;
+        bool firstRead = true;
         while (ReadFile(stdoutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
+            if (firstRead) {
+                printf("DEBUG: First stdout data received (%lu bytes)\n", bytesRead);
+                firstRead = false;
+            }
             buffer[bytesRead] = '\0';
             onStdOut(std::string(buffer, bytesRead));
         }
+        printf("DEBUG: stdout reading thread ending (ReadFile returned false or 0 bytes)\n");
         CloseHandle(stdoutRead);
     });
 
     std::thread stderrThread([stderrRead, onStdErr]() {
+        printf("DEBUG: stderr reading thread started\n");
         char buffer[4096];
         DWORD bytesRead;
+        bool firstRead = true;
         while (ReadFile(stderrRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
+            if (firstRead) {
+                printf("DEBUG: First stderr data received (%lu bytes)\n", bytesRead);
+                firstRead = false;
+            }
             buffer[bytesRead] = '\0';
             onStdErr(std::string(buffer, bytesRead));
         }
+        printf("DEBUG: stderr reading thread ending (ReadFile returned false or 0 bytes)\n");
         CloseHandle(stderrRead);
     });
 
     // Wait for process to complete
     std::thread completionThread([pi, onComplete]() {
+        printf("DEBUG: completion thread started, waiting for process...\n");
         WaitForSingleObject(pi.hProcess, INFINITE);
         
         DWORD exitCode = 0;
         GetExitCodeProcess(pi.hProcess, &exitCode);
+        printf("DEBUG: process completed with exit code: %lu\n", exitCode);
         
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);

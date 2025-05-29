@@ -186,8 +186,18 @@ void FrameBuffer::updateLoop() {
     while (running) {
         // Decode a new frame
         int width, height;
+        uint64_t timestamp;
+        size_t frame_size;
         //printf("Update loop 2\n");
-        int* pixels = DecodeFrame(stream, &width, &height);
+        unsigned char* pixels = DecodeFrame(stream, &width, &height, &timestamp, &frame_size);
+
+        //FILE* fp = fopen("./good_data2.bin", "wb");
+        //if (fp) {
+        //    fwrite(pixels, 1, frame_size, fp);
+        //    fclose(fp);
+        //    printf("Dumped bad JPEG data to bad_data4.bin (%u bytes)\n", frame_size);
+        //}
+
         //printf("Update loop 3\n");
         uint64_t time = current_time_ms_2();
         //printf("Update loop 4\n");
@@ -200,7 +210,7 @@ void FrameBuffer::updateLoop() {
             buffers[backBuffer].clear();
             
             // Check if we need to resize
-            if (resizeEnabled && targetWidth > 0 && targetHeight > 0 && 
+            /*if (resizeEnabled && targetWidth > 0 && targetHeight > 0 && 
                 (width != targetWidth || height != targetHeight)) {
                 
                 int* resizedPixels = resizeFrame(pixels, width, height, targetWidth, targetHeight);
@@ -225,9 +235,28 @@ void FrameBuffer::updateLoop() {
                 buffers[backBuffer].width = width;
                 buffers[backBuffer].height = height;
                 
-            }
+            }*/
+            //if(buffers[backBuffer].pixels)
+            //    free(buffers[backBuffer].pixels);
 
-            buffers[backBuffer].time = time;
+            buffers[backBuffer].pixels = (unsigned char*)malloc(frame_size);
+            //buffers[backBuffer].pixels = pixels;
+            buffers[backBuffer].width = width;
+            buffers[backBuffer].height = height;
+
+            buffers[backBuffer].time = timestamp;
+            buffers[backBuffer].frame_size = frame_size;
+
+            memcpy(buffers[backBuffer].pixels, pixels, frame_size);
+
+            free(pixels);
+
+            /*FILE* fp = fopen("./good_data3.bin", "wb");
+            if (fp) {
+                fwrite(buffers[backBuffer].pixels, 1, frame_size, fp);
+                fclose(fp);
+                printf("Dumped bad JPEG data to bad_data4.bin (%u bytes)\n", frame_size);
+            }*/
             
             // Swap buffers (thread-safe operation)
             swapBuffers();
@@ -247,7 +276,7 @@ void FrameBuffer::swapBuffers() {
     }
 }
 
-int* FrameBuffer::getFrameCopy(int* width, int* height, uint64_t* time) {
+unsigned char* FrameBuffer::getFrameCopy(int* width, int* height, uint64_t* time, size_t* data_size) {
     std::lock_guard<std::mutex> lock(frameMutex);
     
     Frame& front = buffers[frontBuffer];
@@ -260,7 +289,7 @@ int* FrameBuffer::getFrameCopy(int* width, int* height, uint64_t* time) {
     }
     
     // Allocate memory for the copy
-    int pixelCount = front.width * front.height;
+    /*int pixelCount = front.width * front.height;
     int* copy = static_cast<int*>(malloc(pixelCount * sizeof(int)));
     
     if (copy) {
@@ -272,13 +301,27 @@ int* FrameBuffer::getFrameCopy(int* width, int* height, uint64_t* time) {
     } else {
         *width = *height = 0;
         *time = 0;
-    }
+    }*/
 
+    unsigned char* copy = static_cast<unsigned char*>(malloc(front.frame_size));
+    if (copy) {
+        // Copy the pixel data
+        memcpy(copy, front.pixels, front.frame_size);
+        *width = front.width;
+        *height = front.height;
+        *time = front.time;
+        *data_size = front.frame_size;
+    } else {
+        *width = *height = 0;
+        *time = 0;
+        *data_size = 0;
+    }
     
     
     return copy;
 }
 
+/*
 void FrameBuffer::lockFrame(int** pixels, int* width, int* height) {
     std::unique_lock<std::mutex> lock(frameMutex);
     
@@ -305,4 +348,4 @@ void FrameBuffer::unlockFrame() {
     
     // Notify waiting threads
     frameCondition.notify_all();
-}
+}*/

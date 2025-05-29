@@ -13,13 +13,13 @@
 #define TARGET_OPACITY 1.0f
 
 // Target color components (0.0 to 1.0)
-#define TARGET_COLOR_R 1.0f
-#define TARGET_COLOR_G 0.0f
-#define TARGET_COLOR_B 0.0f
+#define TARGET_COLOR_R 0.3254901960784314f
+#define TARGET_COLOR_G 0.6196078431372549f
+#define TARGET_COLOR_B 0.5411764705882353f
 
 // Target color (ARGB format)
-#define TARGET_COLOR 0xFFFF0000        // Red
-#define BORDER_COLOR 0xFF00FF00        // Green
+#define TARGET_COLOR 0xFF539E8A        // Babble Sea Green
+#define BORDER_COLOR 0x00000000        // invisible
 
 // Target line thickness in pixels
 #define TARGET_LINE_THICKNESS 16

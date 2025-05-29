@@ -20,13 +20,13 @@ public:
 
     // Get a copy of the current frame
     // The caller is responsible for freeing the returned memory
-    int* getFrameCopy(int* width, int* height, uint64_t* time);
+    unsigned char* getFrameCopy(int* width, int* height, uint64_t* time, size_t* data_size);
 
     void setTargetResolution(int width, int height);
     
     // Get direct access to the current frame buffer (no copy)
-    void lockFrame(int** pixels, int* width, int* height);
-    void unlockFrame();
+    //void lockFrame(int** pixels, int* width, int* height);
+    //void unlockFrame();
     void setURL(const char* url);
     
     // Control methods
@@ -37,10 +37,11 @@ public:
 private:
     // Frame data structure
     struct Frame {
-        int* pixels = nullptr;
+        unsigned char* pixels = nullptr;
         int width = 0;
         int height = 0;
         uint64_t time = 0;
+        size_t frame_size = 0;
         
         void clear() {
             if (pixels) {

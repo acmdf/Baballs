@@ -19,6 +19,22 @@ enum class OperationType {
 
 constexpr float TARGET_DEFAULT_DISTANCE = 2.0f; // Default distance in meters
 
+// Routine stage definitions
+#define MAX_ROUTINE_STAGE 22              // Highest routine stage number
+#define COMPLETION_STAGE 23               // Completion stage number
+#define CONVERGENCE_NOTIFY_STAGE 15       // Pre-convergence notification stage
+#define CONVERGENCE_STAGE 16              // Convergence test stage
+#define DILATION_STAGE_START 17           // First dilation stage  
+#define DILATION_STAGE_END 22             // Last dilation stage
+
+// Specific dilation stages
+#define DILATION_NOTIFY_1_STAGE 17        // Pre-black screen notification
+#define DILATION_BLACK_STAGE 18           // Black screen stage
+#define DILATION_NOTIFY_2_STAGE 19        // Pre-white screen notification
+#define DILATION_WHITE_STAGE 20           // White screen stage
+#define DILATION_NOTIFY_3_STAGE 21        // Pre-gradient notification  
+#define DILATION_GRADIENT_STAGE 22        // Gradient fade stage
+
 // Structure to represent a single operation
 struct Operation {
     OperationType type;
@@ -80,9 +96,14 @@ public:
     // Get total operation count
     size_t getTotalOperationCount() const;
     
+    int getTimeTillNext();
+
     // Get available routine names
     static std::vector<std::string> getRoutineNames();
     static bool m_stepWritten;
+    static double_t m_globalAdvancedTime;
+    static int m_routineStage;
+    static double_t m_stageStartTime;
 
 private:
     // Operation list for the current routine
@@ -107,6 +128,9 @@ private:
     // Helper methods
     bool parseOperation(const std::string& opStr);
     TargetPosition calculatePosition();
+    TargetPosition calculateConvergencePosition();
+    TargetPosition calculateDilationPosition();
+    void handleStageProgression();
     
     // Convert screen coordinates (0-1) to yaw/pitch angles
     TargetPosition screenToAngles(float x, float y) const;

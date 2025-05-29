@@ -136,7 +136,7 @@ int fill_buffer(MJPEGStream* stream) {
     }
     
     int bytes_read = recv(stream->sock, stream->buffer + stream->buffer_len, 
-                          BUFFER_SIZE - (int)stream->buffer_len, 0);
+                          BUFFER_SIZE - (int)stream->buffer_len, MSG_WAITALL);
     if (bytes_read <= 0) {
         return 0;  // Error or connection closed
     }
@@ -267,7 +267,7 @@ MJPEGStream* GetStreamHandle(const char* url) {
     
     while (!headers_complete && headers_len < sizeof(headers) - 1) {
         char buf[1024];
-        int received = recv(stream->sock, buf, sizeof(buf) - 1, 0);
+        int received = recv(stream->sock, buf, sizeof(buf) - 1, MSG_WAITALL);
         
         if (received <= 0) {
             printf("ERROR: Failed to receive HTTP headers\n");
@@ -362,13 +362,16 @@ MJPEGStream* GetStreamHandle(const char* url) {
 }
 
 // Decode a frame from the MJPEG stream
-int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
-    printf("DecodeFrame...\n");
+unsigned char* DecodeFrame(MJPEGStream* stream, int* width, int* height, uint64_t* timestamp, size_t* return_size) {
+    //printf("DecodeFrame...\n");
     if (!stream || stream->sock == SOCKET_INVALID) {
         printf("cant decode frame: invalid stream state!\n");
         return NULL;
     }
-    printf("DecodeFrame Findboundary...\n");
+
+    uint64_t timestamp_read = 0L;
+
+    //printf("DecodeFrame Findboundary...\n");
     // Find boundary
     char* boundary_pos = NULL;
     while (!(boundary_pos = find_boundary(stream))) {
@@ -377,7 +380,7 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
             return NULL;
         }
     }
-    printf("DecodeFrame MoveBoundary...\n");
+    //printf("DecodeFrame MoveBoundary...\n");
     // Move past the boundary
     stream->buffer_pos = (boundary_pos - stream->buffer) + strlen(stream->boundary);
     
@@ -395,7 +398,7 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
             // Found CRLF after hex digits - this is likely chunked encoding
             is_chunked = 1;
             chunk_header_end = i + 2; // Position after CRLF
-            printf("Detected chunked encoding format\n");
+            //printf("Detected chunked encoding format\n");
             break;
         } else {
             // Not chunked encoding
@@ -425,9 +428,18 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
                 *headers_end = '\0';  // Temporarily null-terminate for strstr
                 
                 char* content_length_header = strstr(stream->buffer + stream->buffer_pos, "Content-Length:");
+                char* timestamp_header = strstr(stream->buffer + stream->buffer_pos, "X-Timestamp:");
+
                 if (content_length_header) {
                     content_length = atoi(content_length_header + 16);
-                    printf("Found Content-Length: %d\n", content_length);
+                    //printf("Found Content-Length: %d\n", content_length);
+                }
+
+                if(timestamp_header){
+                    //printf("Found timestamp: ");
+                    //printf(timestamp_header);
+                    //printf("\n");
+                    timestamp_read = atoll(timestamp_header + 13);
                 }
                 
                 *headers_end = '\r';  // Restore the character
@@ -486,10 +498,10 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
         // Convert hex string to integer
         unsigned int jpeg_size = 0;
         sscanf(chunk_size_str, "%x", &jpeg_size);
-        printf("JPEG chunk size: %u (0x%s)\n", jpeg_size, chunk_size_str);
+        //printf("JPEG chunk size: %u (0x%s)\n", jpeg_size, chunk_size_str);
         
         if (jpeg_size == 0 || jpeg_size > 10000000) { // Sanity check
-            printf("Invalid JPEG chunk size: %u\n", jpeg_size);
+            //printf("Invalid JPEG chunk size: %u\n", jpeg_size);
             return NULL;
         }
         
@@ -529,20 +541,27 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
         
         // Get the image dimensions first
         if (tjDecompressHeader2(stream->tjInstance, jpeg_data, jpeg_size, &w, &h, &jpegSubsamp) < 0) {
-            printf("Error decoding JPEG header: %s\n", tjGetErrorStr());
+            //printf("Error decoding JPEG header: %s\n", tjGetErrorStr());
             
             // Debug dump
-            FILE* fp = fopen("./bad_data7.bin", "wb");
-            if (fp) {
-                fwrite(jpeg_data, 1, jpeg_size, fp);
-                fclose(fp);
-                printf("Dumped bad JPEG data to bad_data4.bin (%u bytes)\n", jpeg_size);
-            }
+            //FILE* fp = fopen("./bad_data7.bin", "wb");
+            //if (fp) {
+            //    fwrite(jpeg_data, 1, jpeg_size, fp);
+            //    fclose(fp);
+            //    printf("Dumped bad JPEG data to bad_data4.bin (%u bytes)\n", jpeg_size);
+            //}
             
             free(jpeg_data);
             return NULL;
         }
-        
+
+        //FILE* fp = fopen("./good_data.bin", "wb");
+        //if (fp) {
+        //    fwrite(jpeg_data, 1, jpeg_size, fp);
+        //    fclose(fp);
+        //    printf("Dumped bad JPEG data to bad_data4.bin (%u bytes)\n", jpeg_size);
+        //}
+        /*
         // Allocate pixel buffer (RGBA format)
         int* pixels = (int*)malloc(w * h * sizeof(int));
         if (!pixels) {
@@ -560,14 +579,16 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
             return NULL;
         }
         
-        free(jpeg_data);
+        free(jpeg_data);*/
         
-        printf("Decoded %u %u jpeg.\n", w, h);
+        //printf("Decoded %u %u jpeg. data size: %u\n", w, h, jpeg_size);
         // Set output parameters
         *width = w;
         *height = h;
+        *return_size = jpeg_size;
+        *timestamp = timestamp_read;
         
-        return pixels;
+        return jpeg_data;
     }
     else {
         // Original non-chunked code path
@@ -590,9 +611,17 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
                 
                 char* content_type_header = strstr(stream->buffer + stream->buffer_pos, "Content-Type: image/jpeg");
                 char* content_length_header = strstr(stream->buffer + stream->buffer_pos, "Content-Length:");
+                char* timestamp_header = strstr(stream->buffer + stream->buffer_pos, "X-Timestamp:");
                 
                 if (content_length_header) {
                     content_length = atoi(content_length_header + 16);
+                }
+
+                if(timestamp_header){
+                    //printf("Found timestamp: ");
+                    //printf(timestamp_header);
+                    //printf("\n");
+                    timestamp_read = atoll(timestamp_header + 13);
                 }
                 
                 *headers_end = '\r';  // Restore the character
@@ -715,18 +744,18 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
         // Get the image dimensions first
         if (tjDecompressHeader2(stream->tjInstance, jpeg_data, content_length, &w, &h, &jpegSubsamp) < 0) {
             // Dump the bad JPEG data to a file
-            FILE* fp = fopen("./bad_data4.bin", "wb");
-            if (fp) {
-                fwrite(jpeg_data, 1, content_length, fp);
-                fclose(fp);
-                printf("Dumped bad JPEG data to bad_data4.bin (%d bytes)\n", content_length);
-            }
+            //FILE* fp = fopen("./bad_data4.bin", "wb");
+            //if (fp) {
+            //    fwrite(jpeg_data, 1, content_length, fp);
+            //    fclose(fp);
+            //    printf("Dumped bad JPEG data to bad_data4.bin (%d bytes)\n", content_length);
+            //}
             
             free(jpeg_data);
             return NULL;
         }
         
-        // Allocate pixel buffer (RGBA format)
+        /*// Allocate pixel buffer (RGBA format)
         int* pixels = (int*)malloc(w * h * sizeof(int));
         if (!pixels) {
             free(jpeg_data);
@@ -737,19 +766,21 @@ int* DecodeFrame(MJPEGStream* stream, int* width, int* height) {
         // Decode the JPEG
         if (tjDecompress2(stream->tjInstance, jpeg_data, content_length, 
                          (unsigned char*)pixels, w, w * 4, h, TJPF_RGBA, 0) < 0) {
-            free(jpeg_data);
+            free(pixels);
             free(pixels);
             printf("Error decoding JPEG: %s\n", tjGetErrorStr());
             return NULL;
         }
         
-        free(jpeg_data);
+        free(jpeg_data);*/
         
         // Set output parameters
         *width = w;
         *height = h;
+        *return_size = content_length;
+        *timestamp = timestamp_read;
         
-        return pixels;
+        return jpeg_data;
     }
 }
 

@@ -14,7 +14,7 @@ set "LIBRARIES=openvr_api.lib user32.lib gdi32.lib kernel32.lib shell32.lib open
 set "ICON_FILE=app.ico"
 
 :: Source files - separate C and C++ files
-set "CPP_SOURCE_FILES=main.cpp overlay_manager.cpp math_utils.cpp dashboard_ui.cpp numpy_io.cpp frame_buffer.cpp routine.cpp rest_server.cpp subprocess.cpp trainer_wrapper.cpp"
+set "CPP_SOURCE_FILES=main.cpp overlay_manager.cpp math_utils.cpp dashboard_ui.cpp numpy_io.cpp frame_buffer.cpp routine.cpp rest_server.cpp subprocess.cpp trainer_wrapper.cpp trainer_progress.cpp"
 set "C_SOURCE_FILES=jpeg_stream.c"
 
 :: Check if cl.exe is in PATH
@@ -54,13 +54,13 @@ echo Compiling resource file...
 rc.exe /nologo build\app.rc
 
 :: Define compiler and linker flags
-set "COMMON_FLAGS=/nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DWIN32 /D_WINDOWS"
+set "COMMON_FLAGS=/nologo /W3 /Od /D_CRT_SECURE_NO_WARNINGS /DWIN32 /D_WINDOWS"
 set "CPP_FLAGS=/EHsc"
 set "INCLUDE_DIRS=/I"%OPENVR_PATH%\headers" /I"%TURBOJPEG_PATH%\include" /I"%ONNXRUNTIME_PATH%\include""
 set "LIBRARY_DIRS=/LIBPATH:"%OPENVR_PATH%\lib\win64" /LIBPATH:"%TURBOJPEG_PATH%\lib" /LIBPATH:"%ONNXRUNTIME_PATH%\lib""
 
 cls
-cl.exe /nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS build_helper.c /Fe:"bhelp.exe"
+cl.exe /nologo /W3 /Od /D_CRT_SECURE_NO_WARNINGS build_helper.c /Fe:"bhelp.exe"
 echo.
 
 :: Compile C source files (without /TP flag)

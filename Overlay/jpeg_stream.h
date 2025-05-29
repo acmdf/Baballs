@@ -36,7 +36,7 @@ MJPEGStream* GetStreamHandle(const char* url);
 * @return int* Array of RGBA pixel data (4 bytes per pixel), or NULL on error.
 *              The caller is responsible for freeing this memory with free().
 */
-int* DecodeFrame(MJPEGStream* stream, int* width, int* height);
+unsigned char* DecodeFrame(MJPEGStream* stream, int* width, int* height, uint64_t* timestamp, size_t* return_size);
 
 /**
 * @brief Close the stream and free all associated resources

@@ -26,9 +26,13 @@
 #define FLAG_CONVERGENCE        (1U << 24)  
 #define FLAG_IN_MOVEMENT        (1U << 25)  
 #define FLAG_RESTING            (1U << 26) 
+#define FLAG_DILATION_BLACK     (1U << 27)  // Black screen for full dilation
+#define FLAG_DILATION_WHITE     (1U << 28)  // White screen for full constriction  
+#define FLAG_DILATION_GRADIENT  (1U << 29)  // Gradient fade from white to black
 
+#define FLAG_GOOD_DATA   (1U << 30)
 
-#define FLAG_ROUTINE_COMPLETE   (1U << 30)
+#define FLAG_ROUTINE_COMPLETE   (1U << 31)
 
 
 /*

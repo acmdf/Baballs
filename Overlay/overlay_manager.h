@@ -3,9 +3,15 @@
 #include <openvr.h>
 #include <windows.h>
 #include <gl/GL.h>
+#include <string>
+#include <map>
 #include "math_utils.h"
 #include "config.h"
 #include "routine.h"
+#include "stb_truetype.h"
+#include "trainer_wrapper.h"
+// Forward declaration for stb_truetype
+typedef struct stbtt_fontinfo stbtt_fontinfo;
 
 class OverlayManager {
 
@@ -16,6 +22,14 @@ public:
         float roll;  // Tilt angle (rotation around forward axis)
         float total; // Total angular difference
     };
+    
+    // Struct for cached glyphs
+    struct CachedGlyph {
+        int width, height;
+        int xoff, yoff;
+        unsigned char* bitmap;
+    };
+    
     OverlayManager();
     ~OverlayManager();
 
@@ -45,19 +59,43 @@ public:
     // Toggle overlay visibility
     void ToggleOverlayVisibility();
     
+    // Target crosshair visibility control
+    void ShowTargetCrosshair();
+    void HideTargetCrosshair();
+    void SetTargetCrosshairVisibility(bool visible);
+    
     // update the tracking target animation
     void UpdateAnimation();
 
     // start a calibration routine
     void StartRoutine(uint32_t routine);
+
+    // Text display methods
+    void SetDisplayString(const char* text);
+    void SetDisplayStringWithGraph(const char* text, const std::vector<float>& lossHistory);
+    
+    // Graph rendering methods (public for external access)
+    void RenderLossGraph(const std::vector<float>& lossHistory, int x, int y, int width, int height);
+    void DrawLine(int x1, int y1, int x2, int y2, uint32_t color);
+    void DrawPixel(int x, int y, uint32_t color);
     
     // Get overlay handle
     vr::VROverlayHandle_t GetOverlayHandle() const;
     ViewingAngles CalculateCurrentViewingAngle() const;
+    
+    // Public access for external graph rendering
+    HDC m_hDC;
+    HGLRC m_hRC;
+    GLuint m_glTextTextureId;
+    uint8_t* m_textTextureData;
+    int m_textTextureWidth;
+    int m_textTextureHeight;
+    vr::VROverlayHandle_t m_ulTextOverlayHandle;
 
     static float s_routinePitch;
     static float s_routineYaw;
     static float s_routineDistance;
+    static float s_routineFadeProgress;
     static bool s_routineSampleWritten;
     static uint32_t s_routineState;
 
@@ -109,8 +147,21 @@ private:
     static void ResetFixedTargetPosition();
     static bool s_positionInitialized;  // Static class variable to track initialization
 
-    // OpenGL context
+    // Text rendering members
+    bool m_showText;
+    std::string m_displayText;
+    stbtt_fontinfo m_font;
+    unsigned char* m_fontBuffer;
+    float m_fontSize;
+    std::map<char, CachedGlyph> m_glyphCache;
+
+    // Text rendering methods
+    bool InitializeFont(const char* fontPath, float fontSize);
+    void RenderText(const std::string& text, int x, int y, uint32_t color);
+    void RenderSingleLine(const std::string& line, int x, int baseline, uint32_t color);
+    int MeasureTextWidth(const std::string& text);
+    int MeasureLineWidth(const std::string& line);
+    
+    // OpenGL context (kept private)
     HWND m_hWnd;
-    HDC m_hDC;
-    HGLRC m_hRC;
 };

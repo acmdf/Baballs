@@ -12,21 +12,46 @@
 #include <numeric>
 #include <chrono>
 
-#define STD_MIN(a, b) ((a) < (b) ? (a) : (b))
-#define FLOAT_TO_INT_CONSTANT 1
+#include "capture_data.h"
+#include "capture_reader.h"
+#include "flags.h"
 
-// CaptureFrame structure
-struct CaptureFrame {
-    std::vector<uint32_t> image_data_left;
-    std::vector<uint32_t> image_data_right;
-    float routinePitch;
-    float routineYaw;
-    float routineDistance;
-    float fovAdjustDistance;
-    uint32_t timestampLow;
-    uint32_t timestampHigh;
-    uint32_t routineState;
-};
+#define STD_MIN(a, b) ((a) < (b) ? (a) : (b))
+
+// Configuration constants
+#define TRAIN_RESOLUTION 128
+#define NUM_FRAMES 4  // Updated for new model (current frame + 3 previous frames)
+#define NUM_CLASSES 10  // Updated for all eye tracking parameters (excluding fovAdjustDistance)
+#define ENABLE_CUDA 0  // Set to 1 to enable CUDA, 0 to use CPU only
+
+
+#include <stdio.h>
+#ifdef _WIN32
+#include <windows.h>
+#undef max  // Undefines the macro
+#undef min  // If you also have min issues
+#else
+#include <unistd.h>
+#endif
+
+int get_cpu_thread_count() {
+    int num_threads = 0;
+    
+    #ifdef _WIN32
+        SYSTEM_INFO sysinfo;
+        GetSystemInfo(&sysinfo);
+        num_threads = sysinfo.dwNumberOfProcessors;
+    #else
+        #ifdef _SC_NPROCESSORS_ONLN
+            num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+        #else
+            num_threads = sysconf(_SC_NPROCESSORS_CONF);
+        #endif
+    #endif
+    
+    // Fallback to at least 1 if detection failed
+    return (num_threads > 0) ? num_threads : 1;
+}
 
 // Convert RGBA uint32_t to float
 float rgba_to_float(uint32_t rgba) {
@@ -44,52 +69,45 @@ std::wstring to_wstring(const std::string& str) {
     return result;
 }
 
-// Function to load capture file - optimized version
-std::vector<CaptureFrame> loadCaptureFile(const std::string& filename) {
-    std::vector<CaptureFrame> frames;
-    std::ifstream file(filename, std::ios::binary);
+// Structure to hold a temporal sequence of frames with pre-processed images
+struct TemporalSequence {
+    std::vector<AlignedFrame> frames;  // Changed to AlignedFrame to match what read_capture_file returns
+    bool is_valid;
+    // Pre-processed image data to avoid repeated JPEG decoding
+    std::vector<std::vector<float>> preprocessed_images;  // [frame_idx][pixel_data]
+};
+
+// Function to extract temporal sequences from frames - updated to use AlignedFrame
+std::vector<TemporalSequence> createTemporalSequences(const std::vector<AlignedFrame>& frames, int num_frames) {
+    std::vector<TemporalSequence> sequences;
     
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        return frames;
+    if (frames.size() < num_frames) {
+        printf("Not enough frames to create sequences\n");
+        return sequences;
     }
     
-    // Calculate sizes
-    const size_t image_size = 128 * 128 * 4; // Size of one eye's image data in bytes
-    const size_t metadata_size = 7 * 4; // Size of the 7 metadata fields (4 bytes each)
-    const size_t frame_size = image_size * 2 + metadata_size;
-    
-    // Read file in chunks
-    std::vector<char> buffer(frame_size);
-    size_t frame_count = 0;
-    
-    while (file.read(buffer.data(), frame_size)) {
-        CaptureFrame frame;
+    for (size_t i = 0; i <= frames.size() - num_frames; i++) {
+        TemporalSequence seq;
         
-        // Extract image data for both eyes
-        frame.image_data_left.resize(128 * 128);
-        frame.image_data_right.resize(128 * 128);
+        // Get the most recent frame first to check if it's safe
+        const auto& latest_frame = frames[i + num_frames - 1];
         
-        // Copy image data
-        std::memcpy(frame.image_data_left.data(), buffer.data(), image_size);
-        std::memcpy(frame.image_data_right.data(), buffer.data() + image_size, image_size);
-        
-        // Calculate offset to the metadata section
-        const char* metadata_ptr = buffer.data() + (image_size * 2);
-        
-        // Copy all metadata fields at once
-        std::memcpy(&frame.routinePitch, metadata_ptr, metadata_size);
-        
-        frames.push_back(frame);
-        frame_count++;
-        
-        if (frame_count % 1000 == 0) {
-            printf("Loaded %zu frames...\n", frame_count);
+        // Check if the most recent frame has FLAG_GOOD_DATA set
+        if (std::get<11>(latest_frame.label_data) & FLAG_GOOD_DATA) {
+            seq.is_valid = true;
+            
+            // Collect all frames in the sequence
+            for (int j = 0; j < num_frames; j++) {
+                seq.frames.push_back(frames[i + j]);
+            }
+            
+            sequences.push_back(seq);
         }
     }
     
-    printf("Processed %zu samples total!\n", frames.size());
-    return frames;
+    printf("Created %zu valid temporal sequences from %zu frames\n", 
+           sequences.size(), frames.size());
+    return sequences;
 }
 
 // Function to print parameter info and check for gradient flow
@@ -120,12 +138,12 @@ void printParameterInfo(OrtTrainingSession* training_session, const OrtApi* g_or
     // Calculate non-trainable parameters size
     size_t non_trainable_params_size = all_params_size - trainable_params_size;
     
-    /*printf("===== Parameter Information =====\n");
+    printf("===== Parameter Information =====\n");
     printf("Total parameters: %zu\n", all_params_size);
     printf("Trainable parameters: %zu (%.2f%%)\n", trainable_params_size, 
            (float)trainable_params_size / all_params_size * 100.0f);
     printf("Frozen parameters: %zu (%.2f%%)\n", non_trainable_params_size, 
-           (float)non_trainable_params_size / all_params_size * 100.0f);*/
+           (float)non_trainable_params_size / all_params_size * 100.0f);
     
     // Create memory info for parameter tensor
     OrtMemoryInfo* memory_info = nullptr;
@@ -176,12 +194,12 @@ void printParameterInfo(OrtTrainingSession* training_session, const OrtApi* g_or
         return;
     }
     
-    /*// Print sample of parameters
+    // Print sample of parameters
     printf("Parameter samples: ");
     for (size_t i = 0; i < 5 && i < trainable_params_size; i++) {
         printf("%g ", current_params[i]);
     }
-    printf("...\n");*/
+    printf("...\n");
     
     // Check if parameters have changed from previous values
     if (prev_params != nullptr && prev_params->size() == trainable_params_size) {
@@ -196,7 +214,8 @@ void printParameterInfo(OrtTrainingSession* training_session, const OrtApi* g_or
             }
         }
         
-        printf("Gradient movement: %g\n", total_diff);
+        printf("Gradient movement: %g (%.2f%% of parameters changed)\n", 
+               total_diff, (float)changed_count / trainable_params_size * 100.0f);
         
         // Update previous parameters
         *prev_params = current_params;
@@ -209,13 +228,13 @@ void printParameterInfo(OrtTrainingSession* training_session, const OrtApi* g_or
     g_ort_api->ReleaseValue(params_tensor);
     g_ort_api->ReleaseMemoryInfo(memory_info);
     
-    //printf("================================\n");
+    printf("================================\n");
 }
 
 int main(int argc, char* argv[]) {
     // Default file paths
-    std::string capture_file = "capture.bin";
-    std::string onnx_model_path = "tuned_model.onnx";
+    std::string capture_file = "capture(2).bin";
+    std::string onnx_model_path = "tuned_temporal_eye_tracking.onnx";
     
     // Check if command line arguments are provided
     if (argc >= 2) {
@@ -226,29 +245,56 @@ int main(int argc, char* argv[]) {
         onnx_model_path = argv[2];   // Second argument is the output file
     }
     
+    printf("Loading capture file: %s\n", capture_file.c_str());
+    
     // Load the capture file
-    auto frames = loadCaptureFile(capture_file);
+    auto frames = read_capture_file(capture_file);
     
     if (frames.empty()) {
         fprintf(stderr, "No frames loaded from capture file\n");
         return 1;
     }
     
+    printf("Loaded %zu frames from capture file\n", frames.size());
+    
+    // Create temporal sequences
+    auto sequences = createTemporalSequences(frames, NUM_FRAMES);
+    
+    if (sequences.empty()) {
+        fprintf(stderr, "No valid temporal sequences created\n");
+        return 1;
+    }
+    
+    printf("DEBUG: About to initialize ONNX Runtime...\n");
+    fflush(stdout);
+    
     // Initialize ONNX Runtime
+    printf("DEBUG: Getting ORT API...\n");
+    fflush(stdout);
     const OrtApi* g_ort_api = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+    printf("DEBUG: Getting ORT Training API...\n");
+    fflush(stdout);
     const OrtTrainingApi* g_ort_training_api = g_ort_api->GetTrainingApi(ORT_API_VERSION);
+    printf("DEBUG: ONNX APIs obtained successfully\n");
+    fflush(stdout);
     
     // Create environment
+    printf("DEBUG: Creating ONNX environment...\n");
+    fflush(stdout);
     OrtEnv* env = NULL;
-    OrtStatus* status = g_ort_api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "BaballsTrainer", &env);
+    OrtStatus* status = g_ort_api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "TemporalEyeTracker", &env);
     if (status != NULL) {
         const char* error_message = g_ort_api->GetErrorMessage(status);
         fprintf(stderr, "Error creating environment: %s\n", error_message);
         g_ort_api->ReleaseStatus(status);
         return 1;
     }
+    printf("DEBUG: Environment created successfully\n");
+    fflush(stdout);
     
     // Create session options
+    printf("DEBUG: Creating session options...\n");
+    fflush(stdout);
     OrtSessionOptions* session_options = NULL;
     status = g_ort_api->CreateSessionOptions(&session_options);
     if (status != NULL) {
@@ -258,10 +304,52 @@ int main(int argc, char* argv[]) {
         g_ort_api->ReleaseEnv(env);
         return 1;
     }
+    printf("DEBUG: Session options created successfully\n");
+    fflush(stdout);
     
-    // Set session options
-    g_ort_api->SetSessionGraphOptimizationLevel(session_options, ORT_DISABLE_ALL);
-    g_ort_api->SetIntraOpNumThreads(session_options, 4);
+    // Set session options with optimizations
+    printf("DEBUG: Setting graph optimization level...\n");
+    fflush(stdout);
+    g_ort_api->SetSessionGraphOptimizationLevel(session_options, ORT_ENABLE_ALL);  // Enable all optimizations
+    printf("DEBUG: Graph optimization set successfully\n");
+    fflush(stdout);
+    
+#if ENABLE_CUDA
+    // Try to use GPU if available
+    printf("DEBUG: Trying to set up CUDA provider...\n");
+    fflush(stdout);
+    OrtStatus* gpu_status = g_ort_api->SessionOptionsAppendExecutionProvider_CUDA(session_options, 0);
+    if (gpu_status != NULL) {
+        printf("CUDA not available, falling back to CPU\n");
+        g_ort_api->ReleaseStatus(gpu_status);
+        
+        printf("DEBUG: Setting up CPU threading...\n");
+        fflush(stdout);
+        uint32_t threads = get_cpu_thread_count() - 1;  // Leave one core free
+        if(threads < 1) threads = 1;
+        
+        g_ort_api->SetIntraOpNumThreads(session_options, threads);
+        g_ort_api->SetInterOpNumThreads(session_options, threads);
+        printf("Using %u CPU threads\n", threads);
+    } else {
+        printf("Using CUDA GPU acceleration\n");
+    }
+#else
+    // Use CPU only
+    printf("DEBUG: CUDA disabled, using CPU only...\n");
+    fflush(stdout);
+    
+    printf("DEBUG: Setting up CPU threading...\n");
+    fflush(stdout);
+    uint32_t threads = get_cpu_thread_count() - 1;  // Leave one core free
+    if(threads < 1) threads = 1;
+    
+    g_ort_api->SetIntraOpNumThreads(session_options, threads);
+    g_ort_api->SetInterOpNumThreads(session_options, threads);
+    printf("Using %u CPU threads\n", threads);
+#endif
+    printf("DEBUG: Execution provider setup complete\n");
+    fflush(stdout);
     
     // Paths to model artifacts
     std::string checkpoint_path = "onnx_artifacts/training/checkpoint";
@@ -283,8 +371,14 @@ int main(int argc, char* argv[]) {
     }
     
     printf("Checkpoint loaded successfully\n");
+    fflush(stdout);
     
     // Create training session
+    printf("Creating training session...\n");
+    printf("Training model: %s\n", training_model_path.c_str());
+    printf("Eval model: %s\n", eval_model_path.c_str());
+    printf("Optimizer model: %s\n", optimizer_model_path.c_str());
+    fflush(stdout);
     OrtTrainingSession* training_session = NULL;
     status = g_ort_training_api->CreateTrainingSession(
         env,
@@ -306,6 +400,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    printf("Training session created successfully!\n");
+    fflush(stdout);
+    
     // Vector to track parameter changes
     std::vector<float> previous_params;
     
@@ -314,7 +411,7 @@ int main(int argc, char* argv[]) {
     printParameterInfo(training_session, g_ort_api, g_ort_training_api, &previous_params);
     
     // Set learning rate
-    float learning_rate = 5e-5f;
+    float learning_rate = 1e-4f;  // Match the learning rate from Python trainer
     status = g_ort_training_api->SetLearningRate(training_session, learning_rate);
     if (status != NULL) {
         const char* error_message = g_ort_api->GetErrorMessage(status);
@@ -350,29 +447,27 @@ int main(int argc, char* argv[]) {
     }
     
     // Create indices for shuffling
-    std::vector<size_t> indices(frames.size());
+    std::vector<size_t> indices(sequences.size());
     std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
     
     // Training configuration
-    const int num_epochs = 5;
-    const size_t batch_size = 16;
-    const size_t check_interval = 100;  // Check parameters every N batches
-    const size_t save_interval = 1;    // Save checkpoint every N epochs
+    const int num_epochs = 16;  // Increased from 2 to 5
+    const size_t batch_size = 16;  // Match Python trainer
+    const size_t check_interval = 500;  // Check parameters every N batches (reduced frequency)
+    const size_t save_interval = 16;    // Save checkpoint every N epochs
     
-    printf("Starting training with %zu samples, %d epochs, batch size %zu\n", 
-           frames.size(), num_epochs, batch_size);
+    printf("Starting training with %zu sequences, %d epochs, batch size %zu\n", 
+           sequences.size(), num_epochs, (size_t)batch_size);
     
     // Track overall stats
     float best_loss = std::numeric_limits<float>::max();
     
+    // Pre-allocate batch tensors to avoid repeated allocations
+    std::vector<float> batch_images(batch_size * 2 * NUM_FRAMES * TRAIN_RESOLUTION * TRAIN_RESOLUTION);
+    std::vector<float> batch_labels(batch_size * NUM_CLASSES);
+    
     // Training loop
     auto training_start_time = std::chrono::steady_clock::now();
-
-
-    auto total_step_count = num_epochs * frames.size();
-    auto warmup_step_count = total_step_count / 3;
-    
-    g_ort_training_api->RegisterLinearLRScheduler(training_session, warmup_step_count, total_step_count, 0.0001f);
     
     for (int epoch = 0; epoch < num_epochs; epoch++) {
         auto epoch_start_time = std::chrono::steady_clock::now();
@@ -388,40 +483,138 @@ int main(int argc, char* argv[]) {
         size_t batch_count = 0;
         
         // Process data in batches
-        for (size_t batch_start = 0; batch_start < frames.size(); batch_start += batch_size) {
+        for (size_t batch_start = 0; batch_start < sequences.size(); batch_start += batch_size) {
             // Determine actual batch size (may be smaller for the last batch)
-            size_t current_batch_size = STD_MIN(batch_size, frames.size() - batch_start);
+            size_t current_batch_size = STD_MIN(batch_size, sequences.size() - batch_start);
             
-            // Prepare batch data - images and labels
-            std::vector<float> batch_images(current_batch_size * 2 * 128 * 128);
-            std::vector<float> batch_labels(current_batch_size * 7);
+            // Resize pre-allocated batch vectors instead of creating new ones
+            size_t required_image_size = current_batch_size * 2 * NUM_FRAMES * TRAIN_RESOLUTION * TRAIN_RESOLUTION;
+            size_t required_label_size = current_batch_size * NUM_CLASSES;
+            
+            if (batch_images.size() != required_image_size) {
+                batch_images.resize(required_image_size);
+            }
+            if (batch_labels.size() != required_label_size) {
+                batch_labels.resize(required_label_size);
+            }
             
             // Fill batch with data
             for (size_t i = 0; i < current_batch_size; i++) {
-                const auto& frame = frames[indices[batch_start + i]];
+                const auto& sequence = sequences[indices[batch_start + i]];
                 
-                // Process left eye image
-                for (size_t j = 0; j < 128 * 128; j++) {
-                    batch_images[i * 2 * 128 * 128 + j] = rgba_to_float(frame.image_data_left[j]);
+                // Use the last frame for labels (most recent)
+                const auto& last_frame = sequence.frames.back();
+                
+                // DEBUG: Check frame validity
+                //printf("Processing sequence %zu, frame timestamp: %llu\n", 
+                //       indices[batch_start + i], last_frame.label_timestamp);
+                
+                // Extract all eye tracking parameters from capture_data.h structure
+                // Eye tracking parameters (pitch, yaw, distance) - excluding fovAdjustDistance
+                float pitch = ((std::get<0>(last_frame.label_data) / 32.0f) + 1.0f) / 2.0f;  // Convert from [-1,1] to [0,1]
+                float yaw = ((std::get<1>(last_frame.label_data) / 32.0f) + 1.0f) / 2.0f;    // Convert from [-1,1] to [0,1]
+                float distance = std::get<2>(last_frame.label_data);  // routineDistance
+                // Skip fovAdjustDistance (std::get<3>) - used for internal normalization only
+                
+                // Lid/brow parameters (routineLeftLid, routineRightLid, routineBrowRaise, routineBrowAngry, routineWiden, routineSquint)
+                float leftLid = std::get<4>(last_frame.label_data);     // routineLeftLid
+                float rightLid = std::get<5>(last_frame.label_data);    // routineRightLid
+                float browRaise = std::get<6>(last_frame.label_data);   // routineBrowRaise
+                float browAngry = std::get<7>(last_frame.label_data);   // routineBrowAngry
+                float widen = std::get<8>(last_frame.label_data);       // routineWiden
+                float squint = std::get<9>(last_frame.label_data);      // routineSquint
+                float dilate = std::get<10>(last_frame.label_data);     // routineDilate
+                
+                // DEBUG: Check for invalid values
+                float all_params[] = {pitch, yaw, distance, leftLid, rightLid, browRaise, browAngry, widen, squint, dilate};
+                bool has_invalid = false;
+                for (int p = 0; p < 10; p++) {
+                    if (!std::isfinite(all_params[p])) {
+                        printf("ERROR: Invalid value at param %d: %f\n", p, all_params[p]);
+                        has_invalid = true;
+                    }
+                }
+                //if (i == 0) {
+                //    printf("Sample %zu labels: pitch=%.3f yaw=%.3f dist=%.3f lid=%.3f,%.3f brow=%.3f,%.3f other=%.3f,%.3f,%.3f\n",
+                //           i, pitch, yaw, distance, leftLid, rightLid, browRaise, browAngry, widen, squint, dilate);
+                //}
+                if (has_invalid) {
+                    printf("Skipping batch due to invalid values\n");
+                    continue;
                 }
                 
-                // Process right eye image
-                for (size_t j = 0; j < 128 * 128; j++) {
-                    batch_images[i * 2 * 128 * 128 + 128 * 128 + j] = rgba_to_float(frame.image_data_right[j]);
-                }
+                // Fill batch labels with 10 parameters (excluding fovAdjustDistance)
+                batch_labels[i * NUM_CLASSES + 0] = pitch;
+                batch_labels[i * NUM_CLASSES + 1] = yaw;
+                batch_labels[i * NUM_CLASSES + 2] = distance;
+                batch_labels[i * NUM_CLASSES + 3] = leftLid;
+                batch_labels[i * NUM_CLASSES + 4] = rightLid;
+                batch_labels[i * NUM_CLASSES + 5] = browRaise;
+                batch_labels[i * NUM_CLASSES + 6] = browAngry;
+                batch_labels[i * NUM_CLASSES + 7] = widen;
+                batch_labels[i * NUM_CLASSES + 8] = squint;
+                batch_labels[i * NUM_CLASSES + 9] = dilate;
                 
-                // Process labels (normalized to [-1, 1])
-                batch_labels[i * 7 + 0] = 2.0f * (frame.routinePitch / FLOAT_TO_INT_CONSTANT) / 360.0f - 1.0f;
-                batch_labels[i * 7 + 1] = 2.0f * (frame.routineYaw / FLOAT_TO_INT_CONSTANT) / 360.0f - 1.0f;
-                batch_labels[i * 7 + 2] = 2.0f * (frame.routineDistance / FLOAT_TO_INT_CONSTANT) / 360.0f - 1.0f;
-                batch_labels[i * 7 + 3] = 0.0f;
-                batch_labels[i * 7 + 4] = 0.0f;
-                batch_labels[i * 7 + 5] = 0.0f;
-                batch_labels[i * 7 + 6] = 0.0f;
+                // Process all frames in the sequence (most recent frame first)
+                for (int frame_idx = 0; frame_idx < NUM_FRAMES; frame_idx++) {
+                    // Get frame from sequence (most recent to oldest)
+                    const auto& frame = sequence.frames[NUM_FRAMES - 1 - frame_idx];
+                    
+                    // Get eye images (reuse vectors to avoid allocations)
+                    static thread_local std::vector<uint32_t> left_eye_data;
+                    static thread_local std::vector<uint32_t> right_eye_data;
+                    int left_width, left_height, right_width, right_height;
+                    
+                    // Decode eye images (uses existing caching)
+                    frame.DecodeImageLeft(left_eye_data, left_width, left_height);
+                    frame.DecodeImageRight(right_eye_data, right_width, right_height);
+                    
+                    // Calculate offsets in the batch tensor
+                    size_t frame_offset = i * 2 * NUM_FRAMES * TRAIN_RESOLUTION * TRAIN_RESOLUTION + 
+                                          frame_idx * 2 * TRAIN_RESOLUTION * TRAIN_RESOLUTION;
+                    
+                    // Process left eye with optimized scaling
+                    const float x_scale = (float)left_width / TRAIN_RESOLUTION;
+                    const float y_scale = (float)left_height / TRAIN_RESOLUTION;
+                    
+                    for (int y = 0; y < TRAIN_RESOLUTION; y++) {
+                        const int src_y = std::max(0, std::min((int)(y * y_scale), left_height - 1));
+                        const int src_row_offset = src_y * left_width;
+                        const size_t target_row_offset = frame_offset + y * TRAIN_RESOLUTION;
+                        
+                        for (int x = 0; x < TRAIN_RESOLUTION; x++) {
+                            const int src_x = std::max(0, std::min((int)(x * x_scale), left_width - 1));
+                            const uint32_t pixel = left_eye_data[src_row_offset + src_x];
+                            batch_images[target_row_offset + x] = (pixel & 0xFF) * (1.0f / 255.0f);
+                        }
+                    }
+                    
+                    // Process right eye with optimized scaling (offset by TRAIN_RESOLUTION * TRAIN_RESOLUTION)
+                    const float x_scale_r = (float)right_width / TRAIN_RESOLUTION;
+                    const float y_scale_r = (float)right_height / TRAIN_RESOLUTION;
+                    const size_t right_eye_offset = frame_offset + TRAIN_RESOLUTION * TRAIN_RESOLUTION;
+                    
+                    for (int y = 0; y < TRAIN_RESOLUTION; y++) {
+                        const int src_y = std::max(0, std::min((int)(y * y_scale_r), right_height - 1));
+                        const int src_row_offset = src_y * right_width;
+                        const size_t target_row_offset = right_eye_offset + y * TRAIN_RESOLUTION;
+                        
+                        for (int x = 0; x < TRAIN_RESOLUTION; x++) {
+                            const int src_x = std::max(0, std::min((int)(x * x_scale_r), right_width - 1));
+                            const uint32_t pixel = right_eye_data[src_row_offset + src_x];
+                            batch_images[target_row_offset + x] = (pixel & 0xFF) * (1.0f / 255.0f);
+                        }
+                    }
+                }
             }
             
+            // DEBUG: Print tensor shapes before creation
+            //printf("Creating tensors - batch_size: %zu, input_shape: [%lld, %lld, %lld, %lld]\n",
+            //       current_batch_size, (int64_t)current_batch_size, (int64_t)(2 * NUM_FRAMES), 
+            //       (int64_t)TRAIN_RESOLUTION, (int64_t)TRAIN_RESOLUTION);
+            
             // Create input tensor for images
-            const int64_t input_shape[] = {(int64_t)current_batch_size, 2, 128, 128};
+            const int64_t input_shape[] = {(int64_t)current_batch_size, 2 * NUM_FRAMES, TRAIN_RESOLUTION, TRAIN_RESOLUTION};
             OrtValue* input_tensor = NULL;
             
             status = g_ort_api->CreateTensorWithDataAsOrtValue(
@@ -441,9 +634,12 @@ int main(int argc, char* argv[]) {
                 continue;  // Skip this batch
             }
             
+            //printf("Input tensor created successfully\n");
+            
             // Create label tensor
-            const int64_t label_shape[] = {(int64_t)current_batch_size, 7};
+            const int64_t label_shape[] = {(int64_t)current_batch_size, NUM_CLASSES};
             OrtValue* label_tensor = NULL;
+            //printf("Creating label tensor with shape: [%lld, %lld]\n", label_shape[0], label_shape[1]);
             
             status = g_ort_api->CreateTensorWithDataAsOrtValue(
                 memory_info,
@@ -463,10 +659,14 @@ int main(int argc, char* argv[]) {
                 continue;  // Skip this batch
             }
             
+            //printf("Label tensor created successfully\n");
+            
             // Setup inputs and outputs for training step
-            const char* input_names[] = {"input", "target"};
             OrtValue* input_values[] = {input_tensor, label_tensor};
             OrtValue* output_values[1] = {NULL};
+            
+            //printf("About to call TrainStep for batch %zu...\n", batch_count);
+            //fflush(stdout);
             
             // Run training step
             status = g_ort_training_api->TrainStep(
@@ -487,6 +687,8 @@ int main(int argc, char* argv[]) {
                 continue;  // Skip this batch
             }
             
+            //printf("TrainStep completed successfully for batch %zu\n", batch_count);
+            
             // Get loss value
             float batch_loss = 0.0f;
             if (output_values[0] != NULL) {
@@ -499,7 +701,7 @@ int main(int argc, char* argv[]) {
                     // Print batch progress
                     printf("\rBatch %zu/%zu, Loss: %.6f", 
                            batch_count + 1, 
-                           (frames.size() + batch_size - 1) / batch_size, 
+                           (sequences.size() + batch_size - 1) / batch_size, 
                            batch_loss);
                     fflush(stdout);
                 } else {
@@ -516,9 +718,7 @@ int main(int argc, char* argv[]) {
                 fprintf(stderr, "\nError in optimizer step: %s\n", error_message);
                 g_ort_api->ReleaseStatus(status);
             }
-
-            g_ort_training_api->SchedulerStep(training_session);
-
+            
             // Reset gradients AFTER optimizer step
             status = g_ort_training_api->LazyResetGrad(training_session);
             if (status != NULL) {
@@ -528,10 +728,10 @@ int main(int argc, char* argv[]) {
             }
             
             // Check parameter changes periodically
-            /*if (batch_count % check_interval == 0) {
+            if (batch_count % check_interval == 0) {
                 printf("\n");  // Add line break after batch progress
                 printParameterInfo(training_session, g_ort_api, g_ort_training_api, &previous_params);
-            }*/
+            }
             
             // Clean up batch resources
             if (output_values[0] != NULL) {
@@ -550,7 +750,7 @@ int main(int argc, char* argv[]) {
         float epoch_avg_loss = epoch_loss_sum / batch_count;
         printf("\nEpoch %d/%d completed in %.2fs. Average loss: %.6f\n", 
                epoch + 1, num_epochs, epoch_duration.count(), epoch_avg_loss);
-        /*
+        
         // Check if this is the best loss so far
         if (epoch_avg_loss < best_loss) {
             best_loss = epoch_avg_loss;
@@ -589,40 +789,24 @@ int main(int argc, char* argv[]) {
             } else {
                 printf("Checkpoint saved to %s\n", checkpoint_save_path.c_str());
             }
-        }*/
-        printParameterInfo(training_session, g_ort_api, g_ort_training_api, &previous_params);
+        }
     }
     
     // Print final parameter info
-    //printf("\nFinal parameter information:\n");
-    //printParameterInfo(training_session, g_ort_api, g_ort_training_api, &previous_params);
+    printf("\nFinal parameter information:\n");
+    printParameterInfo(training_session, g_ort_api, g_ort_training_api, &previous_params);
     
     // Calculate total training time
     auto training_end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> total_training_time = training_end_time - training_start_time;
     printf("Total training time: %.2f seconds\n", total_training_time.count());
     
-    // Save final checkpoint
-    /*printf("Saving final checkpoint...\n");
-    status = g_ort_training_api->SaveCheckpoint(
-        checkpoint_state,
-        to_wstring("onnx_artifacts/training/checkpoint_final").c_str(),
-        true  // Include optimizer state
-    );
-    
-    if (status != NULL) {
-        const char* error_message = g_ort_api->GetErrorMessage(status);
-        fprintf(stderr, "Error saving final checkpoint: %s\n", error_message);
-        g_ort_api->ReleaseStatus(status);
-    } else {
-        printf("Final checkpoint saved successfully\n");
-    }*/
-
+    // Export the model
     std::wstring wide_onnx_path = to_wstring(onnx_model_path);
-
+    
     // Define the output names for your inference model
     const char* output_names[] = {"output"}; 
-
+    
     // Export the model
     status = g_ort_training_api->ExportModelForInferencing(
         training_session,
@@ -630,7 +814,7 @@ int main(int argc, char* argv[]) {
         1,  // Number of outputs
         output_names
     );
-
+    
     if (status != NULL) {
         const char* error_message = g_ort_api->GetErrorMessage(status);
         fprintf(stderr, "Error exporting model to ONNX: %s\n", error_message);
