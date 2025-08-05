@@ -6,7 +6,6 @@ from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
 import numpy as np
 import struct
 import cv2
-from tqdm import tqdm
 import time
 import sys
 import bisect
@@ -272,7 +271,7 @@ def find_pattern_based_offset(label_timestamps, eye_timestamps):
                 eye_start_time = eye_timestamps[start_pos]
                 best_offset = eye_start_time - label_start_time
     
-    print(f"Pattern correlation: {best_correlation:.3f}")
+    print(f"Pattern correlation: {best_correlation:.3f}", flush=True)
     return best_offset
 
 def find_global_time_offset(label_timestamps, eye_timestamps, sample_size=100):
@@ -493,7 +492,7 @@ def decode_jpeg(jpeg_data):
         return img
                 
     except Exception as e:
-        print(f"Error decoding image: {str(e)}")
+        print(f"Error decoding image: {str(e)}", flush=True)
         # Return a red "error" image of 128x128 pixels
         error_img = np.zeros((128, 128, 3), dtype=np.uint8)
         error_img[:, :, 2] = 255  # Red color in BGR
@@ -531,7 +530,7 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
             struct_size = struct.calcsize(struct_format)
             frame_data = f.read(struct_size)
             if not frame_data or len(frame_data) < struct_size:
-                print("Breaking - end of file or incomplete frame metadata")
+                print("Breaking - end of file or incomplete frame metadata", flush=True)
                 break
                 
             # Unpack the frame metadata including new lid/brow parameters
@@ -544,44 +543,44 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
                 routine_state, jpeg_data_left_length, jpeg_data_right_length) = struct.unpack(struct_format, frame_data)
                 total_frames = total_frames + 1
             except struct.error as e:
-                print(f"Error unpacking frame metadata: {e}")
+                print(f"Error unpacking frame metadata: {e}", flush=True)
                 break
 
             if jpeg_data_left_length < 0 or jpeg_data_right_length < 0:
-                print(f"Invalid JPEG data lengths: left={jpeg_data_left_length}, right={jpeg_data_right_length}")
+                print(f"Invalid JPEG data lengths: left={jpeg_data_left_length}, right={jpeg_data_right_length}", flush=True)
                 break
             
             if jpeg_data_left_length > 10*1024*1024 or jpeg_data_right_length > 10*1024*1024:  # 10MB sanity check
-                print(f"JPEG data lengths too large: left={jpeg_data_left_length}, right={jpeg_data_right_length}")
+                print(f"JPEG data lengths too large: left={jpeg_data_left_length}, right={jpeg_data_right_length}", flush=True)
                 break
             
             # Read the image data
             try:
                 image_left_data = f.read(jpeg_data_left_length)
                 if len(image_left_data) != jpeg_data_left_length:
-                    print(f"Failed to read complete left JPEG data: expected {jpeg_data_left_length}, got {len(image_left_data)}")
+                    print(f"Failed to read complete left JPEG data: expected {jpeg_data_left_length}, got {len(image_left_data)}", flush=True)
                     break
                     
                 image_right_data = f.read(jpeg_data_right_length)
                 if len(image_right_data) != jpeg_data_right_length:
-                    print(f"Failed to read complete right JPEG data: expected {jpeg_data_right_length}, got {len(image_right_data)}")
+                    print(f"Failed to read complete right JPEG data: expected {jpeg_data_right_length}, got {len(image_right_data)}", flush=True)
                     break
             except Exception as e:
-                print(f"Error reading JPEG data: {e}")
+                print(f"Error reading JPEG data: {e}", flush=True)
                 break
 
     # Read the raw data from file
-    print("Detecting corrupted BSB frames...")
+    print("Detecting corrupted BSB frames...", flush=True)
     last_was_safe = False
     with open(filename, 'rb') as f:
-        progress = tqdm(range(total_frames))
+        progress = range(total_frames)
         for e in progress:
             # Updated struct format to include all new parameters - use packed format (=) to match C struct
             struct_format = '=ffffffffffffffffqqqiii'  # = for native byte order, no padding
             struct_size = struct.calcsize(struct_format)
             frame_data = f.read(struct_size)
             if not frame_data or len(frame_data) < struct_size:
-                print("Breaking - end of file or incomplete frame metadata")
+                print("Breaking - end of file or incomplete frame metadata", flush=True)
                 break
                 
             # Unpack the frame metadata including new lid/brow parameters
@@ -593,7 +592,7 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
                 timestamp, video_timestamp_left, video_timestamp_right,
                 routine_state, jpeg_data_left_length, jpeg_data_right_length) = struct.unpack(struct_format, frame_data)
             except struct.error as e:
-                print(f"Error unpacking frame metadata: {e}")
+                print(f"Error unpacking frame metadata: {e}", flush=True)
                 break
 
             p_last_was_safe = last_was_safe
@@ -603,26 +602,26 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
              
             # Validate JPEG data lengths
             if jpeg_data_left_length < 0 or jpeg_data_right_length < 0:
-                print(f"Invalid JPEG data lengths: left={jpeg_data_left_length}, right={jpeg_data_right_length}")
+                print(f"Invalid JPEG data lengths: left={jpeg_data_left_length}, right={jpeg_data_right_length}", flush=True)
                 break
             
             if jpeg_data_left_length > 10*1024*1024 or jpeg_data_right_length > 10*1024*1024:  # 10MB sanity check
-                print(f"JPEG data lengths too large: left={jpeg_data_left_length}, right={jpeg_data_right_length}")
+                print(f"JPEG data lengths too large: left={jpeg_data_left_length}, right={jpeg_data_right_length}", flush=True)
                 break
             
             # Read the image data
             try:
                 image_left_data = f.read(jpeg_data_left_length)
                 if len(image_left_data) != jpeg_data_left_length:
-                    print(f"Failed to read complete left JPEG data: expected {jpeg_data_left_length}, got {len(image_left_data)}")
+                    print(f"Failed to read complete left JPEG data: expected {jpeg_data_left_length}, got {len(image_left_data)}", flush=True)
                     break
                     
                 image_right_data = f.read(jpeg_data_right_length)
                 if len(image_right_data) != jpeg_data_right_length:
-                    print(f"Failed to read complete right JPEG data: expected {jpeg_data_right_length}, got {len(image_right_data)}")
+                    print(f"Failed to read complete right JPEG data: expected {jpeg_data_right_length}, got {len(image_right_data)}", flush=True)
                     break
             except Exception as e:
-                print(f"Error reading JPEG data: {e}")
+                print(f"Error reading JPEG data: {e}", flush=True)
                 break
 
             raw_frames += 1
@@ -633,7 +632,7 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
             
             if bad:
                 total_bad = total_bad + 1
-                progress.set_description("Corrupted frames: %d (%.2f%%)" % (total_bad, (total_bad / e) * 100.0))
+                #progress.set_description("Corrupted frames: %d (%.2f%%)" % (total_bad, (total_bad / e) * 100.0))
 
             # Store all frame data including new parameters
             if skip_frames > 0:
@@ -652,10 +651,10 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
     #if exclude_after != 0:
     #    all_eye_frames_left = all_eye_frames_left[:exclude_after]
 
-    print(f"Detected {raw_frames} raw frames")
-    print(f"Unique left eye frames: {len(all_eye_frames_left)}")
-    print(f"Unique right eye frames: {len(all_eye_frames_right)}")
-    print(f"Unique label frames: {len(all_label_frames)}")
+    print(f"Detected {raw_frames} raw frames", flush=True)
+    print(f"Unique left eye frames: {len(all_eye_frames_left)}", flush=True)
+    print(f"Unique right eye frames: {len(all_eye_frames_right)}", flush=True)
+    print(f"Unique label frames: {len(all_label_frames)}", flush=True)
     
     # OPTIMIZED ADVANCED ALIGNMENT ALGORITHM
     # Achieves 100% accuracy with 300x+ speedup
@@ -670,7 +669,7 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
     right_timestamps = [ts for ts, _ in right_frames]
     label_timestamps = [ts for ts, _ in label_frames]
     
-    print("Advanced Phase 1: Cross-correlation offset detection...")
+    print("Advanced Phase 1: Cross-correlation offset detection...", flush=True)
     
     # Use frame rate analysis for better offset detection with extended sampling
     def estimate_frame_intervals(timestamps):
@@ -687,18 +686,18 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
     if label_intervals and left_intervals:
         avg_label_fps = 1000.0 / np.mean(label_intervals) if label_intervals else 30
         avg_left_fps = 1000.0 / np.mean(left_intervals) if left_intervals else 30
-        print(f"Estimated frame rates: Label={avg_label_fps:.1f}fps, Left={avg_left_fps:.1f}fps")
+        print(f"Estimated frame rates: Label={avg_label_fps:.1f}fps, Left={avg_left_fps:.1f}fps", flush=True)
     
     # Sophisticated offset detection using pattern matching
     left_offset = find_pattern_based_offset(label_timestamps, left_timestamps)
     right_offset = find_pattern_based_offset(label_timestamps, right_timestamps)
     
-    print(f"Pattern-based offsets: left={left_offset}ms, right={right_offset}ms")
+    print(f"Pattern-based offsets: left={left_offset}ms, right={right_offset}ms", flush=True)
     
     # Phase 2: Fine-grained local alignment with optimized windows
     potential_matches = []
     
-    for label_ts, label_data in tqdm(label_frames):
+    for label_ts, label_data in label_frames:
         adjusted_left_target = label_ts + left_offset
         adjusted_right_target = label_ts + right_offset
         
@@ -733,7 +732,7 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
     used_left = set()
     used_right = set()
     
-    for match in tqdm(potential_matches):
+    for match in potential_matches:
         if match['left_idx'] not in used_left and match['right_idx'] not in used_right:
             used_left.add(match['left_idx'])
             used_right.add(match['right_idx'])
@@ -753,7 +752,7 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
     final_frames = final_matches  # Start with the sorted matches
     
     # Add previous frames to each frame starting from index 3
-    for e in tqdm(range(len(final_frames) - 3)):
+    for e in range(len(final_frames) - 3):
         final_frames[e + 3] = (
             final_frames[e + 3][0],  # label_data
             final_frames[e + 3][1],  # left image  
@@ -765,8 +764,8 @@ def read_capture_file(filename, exclude_after=0, exclude_before=0):
     # Remove first 3 frames (which don't have complete previous frame context)
     final_frames = final_frames[3:] if len(final_frames) > 3 else []
     
-    print(f"\n   ***   Optimized alignment: {len(final_frames)} frames   ***   ")
-    print("   ***   Excluded %d bad frames (bsb glitch detector)   ***   \n" % (total_bad))
+    print(f"\n   ***   Optimized alignment: {len(final_frames)} frames   ***   ", flush=True)
+    print("   ***   Excluded %d bad frames (bsb glitch detector)   ***   \n" % (total_bad), flush=True)
     #    print(f"Average deviation: left={avg_left_deviation:.2f}ms, right={avg_right_deviation:.2f}ms")
     #else:
     #    print("No frames could be aligned")
@@ -895,19 +894,19 @@ class CaptureDataset(Dataset):
         self.max_convergence = c_max
 
 
-        print(self.pitch_min)
-        print(self.pitch_max)
-        print(self.yaw_min)
-        print(self.yaw_max)
-        print(self.pitch_range)
-        print(self.yaw_range)
+        print(self.pitch_min, flush=True)
+        print(self.pitch_max, flush=True)
+        print(self.yaw_min, flush=True)
+        print(self.yaw_max, flush=True)
+        print(self.pitch_range, flush=True)
+        print(self.yaw_range, flush=True)
         #quit()
 
         #print(f"Loaded {len(self.aligned_frames)} frames "
         #      f"(pitch ∈ [{self.pitch_min:.2f},{self.pitch_max:.2f}], "
         #      f"yaw ∈ [{self.yaw_min:.2f},{self.yaw_max:.2f}])")
 
-        print(f"Loaded {len(self.aligned_frames)} frames from capture file")
+        print(f"Loaded {len(self.aligned_frames)} frames from capture file", flush=True)
     
     def __len__(self):
         return len(self.aligned_frames)
@@ -1059,7 +1058,7 @@ class CaptureDataset(Dataset):
         distance = routine_convergence
 
         if norm_pitch < 0 or norm_yaw < 0 or norm_pitch > 1 or norm_yaw > 1 or norm_convergence < 0 or norm_convergence > 1:
-            print("INVALID VALUE ENCOUNTERED!")
+            print("INVALID VALUE ENCOUNTERED!", flush=True)
             quit()
         #print(norm_convergence)
 
@@ -1108,7 +1107,7 @@ class CaptureDataset(Dataset):
 
 def train_model(model, decoder, train_loader, num_epochs=10, lr=5e-5, class_step=False):
     device = DEVICE#torch.device("cuda:0")
-    print(f"Using device: {device}")
+    print(f"Using device: {device}", flush=True)
     
     model = model.to(device)
     criterion = nn.MSELoss()
@@ -1137,7 +1136,7 @@ def train_model(model, decoder, train_loader, num_epochs=10, lr=5e-5, class_step
 
     
     for epoch in range(num_epochs):
-        print("\n=== Epoch %d/%d ===\n" % (epoch + 1, num_epochs + 1))#printf("\n=== Epoch %d/%d ===\n", epoch + 1, num_epochs);
+        print("\n=== Epoch %d/%d ===\n" % (epoch + 1, num_epochs + 1), flush=True)#printf("\n=== Epoch %d/%d ===\n", epoch + 1, num_epochs);
 
         start = time.time()
         
@@ -1172,7 +1171,7 @@ def train_model(model, decoder, train_loader, num_epochs=10, lr=5e-5, class_step
                 optimizerE.step()
                 #progress.set_description("(%d/%d) Loss: %.6f" % (i, max_i, float(loss)))
                 #  optimizerD.step()
-                print("\rBatch %u/%u, Loss: %.6f" % (i, max_i, float(loss)))
+                print("\rBatch %u/%u, Loss: %.6f" % (i, max_i, float(loss)), flush=True)
                 
                 # Print statistics
                 running_loss += loss.item()
@@ -1203,7 +1202,7 @@ def train_model(model, decoder, train_loader, num_epochs=10, lr=5e-5, class_step
         epoch_loss = running_loss / len(train_loader)
         epoch_losses.append(epoch_loss)
         #print(f"Epoch {epoch+1}/{num_epochs} completed. Average loss: {epoch_loss:.4f}")
-        print("\nEpoch %d/%d completed in %.2fs. Average loss: %.6f\n" % (epoch + 1, num_epochs + 1, time.time() - start, epoch_loss))
+        print("\nEpoch %d/%d completed in %.2fs. Average loss: %.6f\n" % (epoch + 1, num_epochs + 1, time.time() - start, epoch_loss), flush=True)
         #print("end: " + str(time.time() - start))
 
         #s#ched.step()
@@ -1226,8 +1225,8 @@ def main():
     
     model=MicroChad()
 
-    print("Total params: " + str(count_parameters(model)))
-    print(model)
+    print("Total params: " + str(count_parameters(model)), flush=True)
+    print(model, flush=True)
 
     model.load_state_dict(torch.load("baseline.pth", map_location=DEVICE))
     trained_model = model
@@ -1265,7 +1264,7 @@ def main():
     # Save the final model
     #torch.save(trained_model.state_dict(), "final_model_temporal_que_tuned_2.pth")
     
-    print("\nTraining completed successfully!\n")
+    print("\nTraining completed successfully!\n", flush=True)
 
     device = torch.device("cpu")
 
@@ -1293,7 +1292,7 @@ def main():
             'output': {0: 'batch_size'}
         }
     )
-    print("Model exported to ONNX: " + sys.argv[2])
+    print("Model exported to ONNX: " + sys.argv[2], flush=True)
 
 if __name__ == "__main__":
     main()
