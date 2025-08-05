@@ -14,14 +14,13 @@
 #include <sstream>
 #include <iomanip>
 #ifdef _WIN32
-    #include <conio.h>
     #include <windows.h>
 #else
     #include <sys/time.h>
     #include <time.h>
 #endif
-#include <openvr/openvr.h>
-
+#include <openvr.h>
+#include <conio.h>
 
 #include "overlay_manager.h"
 #include "math_utils.h"
@@ -397,7 +396,7 @@ void initEyeConnections(FrameBuffer* frameBufferLeft, FrameBuffer* frameBufferRi
         unsigned char* image = frameBufferLeft->getFrameCopy(&width, &height, &time, &size);
         if(width < 1 || height < 1){
             printf("Waiting for valid image data from both eyes...\n");
-            sleep(1000); /* TODO: universal sleep (this is windows.h) */
+            Sleep(1000); /* TODO: universal sleep (this is windows.h) */
             free(image);
             continue;
         }
@@ -406,7 +405,7 @@ void initEyeConnections(FrameBuffer* frameBufferLeft, FrameBuffer* frameBufferRi
         image = frameBufferRight->getFrameCopy(&width, &height, &time, &size);
         if(width < 1 || height < 1){
             printf("Waiting for valid image data from both eyes...\n");
-            sleep(1000); /* TODO: universal sleep (this is windows.h) */
+            Sleep(1000); /* TODO: universal sleep (this is windows.h) */
             free(image);
             continue;
         }
@@ -778,10 +777,12 @@ int main(int argc, char* argv[])
     // Variables to track target lock state
     bool isTargetLocked = false;
     
-    char filename[256];
-    uint64_t start_time = current_time_ms();
-    snprintf(filename, sizeof(filename), "capture_%llu.bin", start_time);
+    //char filename[256];
+    //uint64_t start_time = current_time_ms();
+    //snprintf(filename, sizeof(filename), "capture_%llu.bin", start_time);
     
+    char* filename = "user_cal.bin";
+
     FileHandle captureFile = openCaptureFile(filename);
     if (!isValidHandle(captureFile)) {
         printf("ERROR: Failed to open capture file!\n");
@@ -794,6 +795,9 @@ int main(int argc, char* argv[])
     int remTime = 0;
     bool bQuit = false;
     bool goodData = false;
+
+    overlayManager.LoadVideo("./video.bin");
+
     while (!bQuit)
     {
         // Process SteamVR events
@@ -828,21 +832,41 @@ int main(int argc, char* argv[])
         frame.routineWiden = 0.0f;
         frame.routineSquint = 0.0f;
         frame.routineDilate = 0.0f;
+        
+        // Reset eye gaze values for each frame
+        frame.routinePitch = 0.0f;
+        frame.routineYaw = 0.0f;
+        frame.routineDistance = 0.0f;
+        frame.routineConvergence = 0.0f;
+        frame.leftEyePitch = 0.0f;
+        frame.leftEyeYaw = 0.0f;
+        frame.rightEyePitch = 0.0f;
+        frame.rightEyeYaw = 0.0f;
 
         //printf("DEBUG: Current routine stage = %d\n", RoutineController::m_routineStage);
         switch(RoutineController::m_routineStage){
             case 0: // pre-calibration stage
             default:
                 remTime = g_OverlayManager.g_routineController.getTimeTillNext();
-                sprintf(str, "   ~~ Gaze Calibration ~~ \n\nThere are multiple stages to this calibration routine.\nIn this first sage, the crosshair will move in an S pattern.\nPlease follow the crosshair until the routine completes.\n\nThis will start in %d seconds.", remTime);
+                sprintf(str, "   ~~ Gaze Calibration ~~ \n\nDuring this first stage of calibration, follow the dot with your eyes and move your head around as shown in the video.\n\nCalibration will start in %d seconds.", remTime);
                 overlayManager.SetDisplayString(str);
                 overlayManager.HideTargetCrosshair();
+                //overlayManager.Update();
+                overlayManager.EnableVideo(true);
+                goodData = false;
                 break;
             case 1: // scan left-right
             case 2: // scan up-down
-                goodData = true;
+                // hack
+                printf("\n\nSwapping to fixed position\n\n");
+                RoutineController::m_routineStage = FIXED_POSITION_STAGE;
+                RoutineController::m_stageStartTime = RoutineController::m_globalAdvancedTime;
+
+                goodData = false;
                 overlayManager.SetDisplayString(NULL); // HACK! Todo: only call once!
+                overlayManager.EnableVideo(false);
                 overlayManager.ShowTargetCrosshair();
+                //overlayManager.ShowTargetCrosshair();
                 break;
             case 3: // notify of closed eyes
                 remTime = g_OverlayManager.g_routineController.getTimeTillNext();
@@ -970,8 +994,59 @@ int main(int argc, char* argv[])
                 // 0.0 = bright screen (pupils constricted), 1.0 = dark screen (pupils dilated)
                 frame.routineDilate = g_OverlayManager.s_routineFadeProgress; // Uses fade progress from routine controller
                 break;
-            case 23: // completion stage
-                printf("DEBUG: In case 23 - g_Trainer.isRunning()=%d, g_hasTrainingUpdate=%d\n", g_Trainer.isRunning(), g_hasTrainingUpdate);
+            case 23: // notify of fixed position test
+                remTime = g_OverlayManager.g_routineController.getTimeTillNext();
+                sprintf(str, "   ~~ Fixed Position Head Movement Test ~~ \n\nCountdown: %d seconds!\n\nWhen the countdown finishes, the crosshair will remain fixed in space.\nMove your head around while keeping your eyes focused on the crosshair.", remTime);
+                overlayManager.SetDisplayString(str);
+                overlayManager.ShowTargetCrosshair();
+                break;
+            case 24: // fixed position test
+            {
+                goodData = true;
+                // Enable fixed position mode when entering this stage
+                static int lastFixedStage = -1;
+                if (lastFixedStage != RoutineController::m_routineStage) {
+                    overlayManager.EnableFixedPositionMode(true);
+                    lastFixedStage = RoutineController::m_routineStage;
+                }
+                
+                // Calculate real-time eye gaze predictions
+                MU_ConvergenceParams params = MU_CreateDefaultConvergenceParams();
+                float halfIPD = params.ipdMeters * 0.5f;
+                MU_Vector3 leftEyeOffset = {-halfIPD, 0.0f, 0.0f};
+                MU_Vector3 rightEyeOffset = {halfIPD, 0.0f, 0.0f};
+                MU_Vector3 targetPos = overlayManager.GetCurrentTargetPosition();
+                
+                // Calculate both individual and unified gaze
+                MU_EyeGaze eyeGaze = overlayManager.CalculateEyeGaze(leftEyeOffset, rightEyeOffset, targetPos);
+                MU_UnifiedGaze unifiedGaze = overlayManager.CalculateUnifiedEyeGaze(leftEyeOffset, rightEyeOffset, targetPos, params);
+                
+                // Test round-trip conversion accuracy
+                MU_EyeGaze convertedBack = MU_ConvertFromUnifiedGaze(unifiedGaze, params);
+                
+                // Create display string with eye gaze data
+                /*sprintf(str, "   ~~ Fixed Position Test ~~ \n\nKeep your eyes focused on the crosshair.\nMove your head around naturally.\n\nPredicted Eye Gaze:\nLeft:  Pitch=%.1f° Yaw=%.1f°\nRight: Pitch=%.1f° Yaw=%.1f°\n\nUnified: Pitch=%.1f° Yaw=%.1f°\nConvergence=%.3f (%.1f°)\n\nRound-trip Test:\nLeft:  Pitch=%.1f° Yaw=%.1f°\nRight: Pitch=%.1f° Yaw=%.1f°",
+                       eyeGaze.leftEyePitch, eyeGaze.leftEyeYaw,
+                       eyeGaze.rightEyePitch, eyeGaze.rightEyeYaw,
+                       unifiedGaze.pitch, unifiedGaze.yaw,
+                       unifiedGaze.convergence, unifiedGaze.convergence * params.maxConvergenceAngle,
+                       convertedBack.leftEyePitch, convertedBack.leftEyeYaw,
+                       convertedBack.rightEyePitch, convertedBack.rightEyeYaw);*/
+                       
+                overlayManager.SetDisplayString(NULL);
+                overlayManager.ShowTargetCrosshair();
+                break;
+            }
+            case 25: // completion stage
+                goodData = true;
+                sprintf(str, "   ~~ Eyelid Calibration ~~ \n\nRemaining Time: %d seconds!\n\nPlease close your eyes, and alternate between neutral closed and tightly closed for the specified time.", remTime);
+                overlayManager.SetDisplayString(str);
+                break;
+            case 26:
+                goodData = false;
+                // Disable fixed position mode when leaving the test
+                overlayManager.EnableFixedPositionMode(false);
+                printf("DEBUG: In case 25 - g_Trainer.isRunning()=%d, g_hasTrainingUpdate=%d\n", g_Trainer.isRunning(), g_hasTrainingUpdate);
                 if (g_Trainer.isRunning()) {
                     // Training is active - use safe combined text and graph display
                     if (g_hasTrainingUpdate) {
@@ -1132,9 +1207,28 @@ int main(int argc, char* argv[])
                     //memcpy(frame.image_data_left, imageLeft, width*height*sizeof(int));
                     //memcpy(frame.image_data_right, imageRight, width*height*sizeof(int));
 
-                    frame.routinePitch = OverlayManager::s_routinePitch;//(int32_t)(OverlayManager::s_routinePitch * FLOAT_TO_INT_CONSTANT);
-                    frame.routineYaw = OverlayManager::s_routineYaw;//(int32_t)(OverlayManager::s_routineYaw * FLOAT_TO_INT_CONSTANT);
-                    frame.routineDistance = OverlayManager::s_routineDistance;//(int32_t)(OverlayManager::s_routineDistance * FLOAT_TO_INT_CONSTANT);
+                    // Calculate eye gaze data for the current target position
+                    MU_ConvergenceParams params = MU_CreateDefaultConvergenceParams();
+                    float halfIPD = params.ipdMeters * 0.5f;
+                    MU_Vector3 leftEyeOffset = {-halfIPD, 0.0f, 0.0f};
+                    MU_Vector3 rightEyeOffset = {halfIPD, 0.0f, 0.0f};
+                    MU_Vector3 targetPos = overlayManager.GetCurrentTargetPosition();
+                    
+                    // Calculate both individual and unified gaze
+                    MU_EyeGaze eyeGaze = overlayManager.CalculateEyeGaze(leftEyeOffset, rightEyeOffset, targetPos);
+                    MU_UnifiedGaze unifiedGaze = overlayManager.CalculateUnifiedEyeGaze(leftEyeOffset, rightEyeOffset, targetPos, params);
+                    
+                    // Store unified gaze (backward compatible)
+                    frame.routinePitch = unifiedGaze.pitch;
+                    frame.routineYaw = unifiedGaze.yaw;
+                    frame.routineDistance = OverlayManager::s_routineDistance;
+                    frame.routineConvergence = unifiedGaze.convergence;
+                    
+                    // Store individual eye gaze
+                    frame.leftEyePitch = eyeGaze.leftEyePitch;
+                    frame.leftEyeYaw = eyeGaze.leftEyeYaw;
+                    frame.rightEyePitch = eyeGaze.rightEyePitch;
+                    frame.rightEyeYaw = eyeGaze.rightEyeYaw;
 
                     frame.jpeg_data_left_length = (uint32_t)size_left;
                     frame.jpeg_data_right_length = (uint32_t)size_right;
@@ -1148,6 +1242,26 @@ int main(int argc, char* argv[])
 
                     if(goodData)
                         frame.routineState |= FLAG_GOOD_DATA;
+
+                    frame.routineLeftLid = 1;
+                    frame.routineRightLid = 1;
+
+                    if(RoutineController::m_routineStage == 25) {
+                        // eyes closed
+                        frame.routinePitch = 0;
+                        frame.routineYaw = 0;
+                        frame.routineDistance = 0;
+                        frame.routineConvergence = 0;
+                        
+                        // Store individual eye gaze
+                        frame.leftEyePitch = 0;
+                        frame.leftEyeYaw = 0;
+                        frame.rightEyePitch = 0;
+                        frame.rightEyeYaw = 0;
+
+                        frame.routineLeftLid = 0;
+                        frame.routineRightLid = 0;
+                    }
                     //frame.routineState = OverlayManager::s_routineState;//(uint32_t)OverlayManager::s_routineState;
                     // printf("Time_left: %lld, time_right: %lld, now: %lld\n", time_left, time_right, now); // Commented out to reduce spam
                     // printf("Routine position: %f %f, time diffL: %lld, time diffR: %lld ", frame.routinePitch, frame.routineYaw, now - time_left, now - time_right); // Commented out to reduce spam
@@ -1235,10 +1349,8 @@ int main(int argc, char* argv[])
                 angles.yaw, angles.pitch, angles.total);
         
         g_DashboardUI.SetStatusText(statusText);
-
         
-
-        sleep(10);
+        Sleep(10);
     }
 
     closeCaptureFile(captureFile);
@@ -1260,7 +1372,71 @@ int main(int argc, char* argv[])
 
 void ProcessKeyboardInput()
 {
-   
+    // Check for key presses
+    // Arrow keys: adjust target position
+    // Space: lock/unlock target position
+    // ESC: exit program
+    
+    // Left arrow - decrease yaw (move target left)
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000)
+    {
+        g_fTargetYawOffset -= TARGET_MOVEMENT_SPEED;
+    }
+    
+    // Right arrow - increase yaw (move target right)
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
+    {
+        g_fTargetYawOffset += TARGET_MOVEMENT_SPEED;
+    }
+    
+    // Up arrow - increase pitch (move target up)
+    if (GetAsyncKeyState(VK_UP) & 0x8000)
+    {
+        g_fTargetPitchOffset += TARGET_MOVEMENT_SPEED;
+    }
+    
+    // Down arrow - decrease pitch (move target down)
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+    {
+        g_fTargetPitchOffset -= TARGET_MOVEMENT_SPEED;
+    }
+    
+    // Space - toggle target lock
+    static bool spaceWasPressed = false;
+    bool spaceIsPressed = (GetAsyncKeyState(VK_SPACE) & 0x8000) != 0;
+    
+    if (spaceIsPressed && !spaceWasPressed)
+    {
+        g_bTargetLocked = !g_bTargetLocked;
+        if (g_bTargetLocked)
+        {
+            std::cout << "\nTarget position locked at Yaw: " << g_fTargetYawOffset 
+                      << "°, Pitch: " << g_fTargetPitchOffset << "°" << std::endl;
+        }
+        else
+        {
+            std::cout << "\nTarget position unlocked" << std::endl;
+        }
+    }
+    spaceWasPressed = spaceIsPressed;
+    
+    // R key - reset target position
+    static bool rWasPressed = false;
+    bool rIsPressed = (GetAsyncKeyState('R') & 0x8000) != 0;
+    
+    if (rIsPressed && !rWasPressed)
+    {
+        g_fTargetYawOffset = 0.0f;
+        g_fTargetPitchOffset = 0.0f;
+        std::cout << "\nTarget position reset to center" << std::endl;
+    }
+    rWasPressed = rIsPressed;
+    
+    // ESC - exit program
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+    {
+        g_bProgramRunning = false;
+    }
 }
 
 void UpdateTargetPosition()

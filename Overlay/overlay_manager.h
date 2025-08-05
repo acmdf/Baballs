@@ -1,10 +1,8 @@
 #pragma once
 
-#include <openvr/openvr.h>
-#ifdef _WIN32
-    #include <windows.h>
-#endif
-#include <GL/gl.h>
+#include <openvr.h>
+#include <windows.h>
+#include <gl/GL.h>
 #include <string>
 #include <map>
 #include "math_utils.h"
@@ -12,6 +10,7 @@
 #include "routine.h"
 #include "stb_truetype.h"
 #include "trainer_wrapper.h"
+#include "video_player.h"
 // Forward declaration for stb_truetype
 typedef struct stbtt_fontinfo stbtt_fontinfo;
 
@@ -47,6 +46,7 @@ public:
     // Add these methods instead
     void SetFixedTargetPosition(float yawAngle, float pitchAngle);
     void SetPreviewTargetPosition(float yawAngle, float pitchAngle);
+    void EnableFixedPositionMode(bool enable);
     
     // Get the current angles
     float GetCurrentYawAngle() const;
@@ -85,6 +85,21 @@ public:
     vr::VROverlayHandle_t GetOverlayHandle() const;
     ViewingAngles CalculateCurrentViewingAngle() const;
     
+    // Eye gaze calculation method
+    MU_EyeGaze CalculateEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition) const;
+    
+    // Unified gaze calculation method (returns pitch/yaw/convergence)
+    MU_UnifiedGaze CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition) const;
+    MU_UnifiedGaze CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition, MU_ConvergenceParams params) const;
+    
+    // Get current target position (public accessor)
+    MU_Vector3 GetCurrentTargetPosition() const;
+    
+    // Video control methods
+    void LoadVideo(const std::string& filepath);
+    void EnableVideo(bool enable);
+    void UpdateVideoPlayback();
+    
     // Public access for external graph rendering
     HDC m_hDC;
     HGLRC m_hRC;
@@ -108,26 +123,33 @@ private:
     vr::VROverlayHandle_t m_ulOverlayHandle;
     vr::VROverlayHandle_t m_ulThumbnailHandle;
     vr::VROverlayHandle_t m_ulBorderOverlayHandle;
+    vr::VROverlayHandle_t m_ulVideoOverlayHandle;
     
     // OpenGL textures
     GLuint m_glTextureId;
     GLuint m_glBorderTextureId;
+    GLuint m_glVideoTextureId;
     
     // Texture dimensions
     int m_nTextureWidth;
     int m_nTextureHeight;
     int m_borderTextureWidth;
     int m_borderTextureHeight;
+    int m_videoTextureWidth;
+    int m_videoTextureHeight;
     
     // Texture data
     uint8_t* m_pTextureData;
     uint8_t* m_borderTextureData;
+    uint8_t* m_videoTextureData;
     
     // Current position of the target in angles (yaw, pitch)
     float m_targetYawAngle;
     float m_targetPitchAngle;
 
     bool m_targetIsPreview;
+    bool m_isFixedPositionMode;
+    MU_Vector3 m_fixedWorldPosition;  // Fixed position in world coordinates
     
     // Flag to track if the overlay is visible
     bool m_isVisible;
@@ -142,10 +164,10 @@ private:
     void UpdateOverlayTexture();
     
     vr::HmdMatrix34_t GetHmdPose() const;
-    MU_Vector3 CalculateTargetPosition() const;
     
     // Update the overlay transform
     void UpdateOverlayTransform(const MU_Vector3& targetPosition);
+    MU_Vector3 CalculateTargetPosition() const;
     static void ResetFixedTargetPosition();
     static bool s_positionInitialized;  // Static class variable to track initialization
 
@@ -163,6 +185,10 @@ private:
     void RenderSingleLine(const std::string& line, int x, int baseline, uint32_t color);
     int MeasureTextWidth(const std::string& text);
     int MeasureLineWidth(const std::string& line);
+    
+    // Video helper methods
+    void CopyFrameToTexture(const FrameData& frame);
+    bool ShouldShowVideoForStage(int stage);
     
     // OpenGL context (kept private)
     HWND m_hWnd;

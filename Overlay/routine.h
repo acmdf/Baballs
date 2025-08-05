@@ -14,14 +14,17 @@ enum class OperationType {
     REST,       // Stay at current position
     SMOOTH,     // Smooth linear movement
     SMOOTH_CIRCLE, // Smooth circular movement
-    MOVE_AWAY_TOWARD // moves the crosshair away / toward
+    MOVE_AWAY_TOWARD, // moves the crosshair away / toward
+    FIXED_POSITION // Fixed position in world space
 };
 
 constexpr float TARGET_DEFAULT_DISTANCE = 2.0f; // Default distance in meters
 
 // Routine stage definitions
-#define MAX_ROUTINE_STAGE 22              // Highest routine stage number
-#define COMPLETION_STAGE 23               // Completion stage number
+#define MAX_ROUTINE_STAGE 25              // Highest routine stage number
+#define FIXED_POSITION_NOTIFY_STAGE 23    // Pre-fixed position notification
+#define FIXED_POSITION_STAGE 24           // Fixed position test stage
+#define COMPLETION_STAGE 26               // Completion stage number
 #define CONVERGENCE_NOTIFY_STAGE 15       // Pre-convergence notification stage
 #define CONVERGENCE_STAGE 16              // Convergence test stage
 #define DILATION_STAGE_START 17           // First dilation stage  
@@ -51,6 +54,9 @@ struct Operation {
             float endDistance;      // Ending distance in meters
             float seconds;          // Duration of movement
         } depth;
+        struct { 
+            float seconds;          // Duration to maintain fixed position
+        } fixedPos;
     } params;
     
     // Time tracking
@@ -101,9 +107,10 @@ public:
     // Get available routine names
     static std::vector<std::string> getRoutineNames();
     static bool m_stepWritten;
-    static double m_globalAdvancedTime;
+    static double_t m_globalAdvancedTime;
     static int m_routineStage;
-    static double m_stageStartTime;
+    static double_t m_stageStartTime;
+    static double_t m_fixedStageDuration;
 
 private:
     // Operation list for the current routine
@@ -122,8 +129,8 @@ private:
     // Configuration
     float m_maxMoveSpeed; // Maximum movement speed in units per second
 
-    double m_elapsedTime;
-    double m_lastRandomPointTime;
+    double_t m_elapsedTime;
+    double_t m_lastRandomPointTime;
     
     // Helper methods
     bool parseOperation(const std::string& opStr);

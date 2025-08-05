@@ -24,13 +24,13 @@ bool TrainerWrapper::start(
     // Reset progress parser
     m_progressParser.Reset();
 
-    // Prepare arguments for the trainer
-    std::vector<std::string> args = { datasetFile, outputFile };
+    // Prepare arguments for Python script via venv
+    std::vector<std::string> args = { "trainermin.exe", datasetFile, outputFile };
 
-    // Start the trainer process
+    // Start the trainer process using venv Python
     bool success = spawnProcess(
-        m_trainerPath,
-        args,
+        args[0],
+        std::vector<std::string>(args.begin() + 1, args.end()),
         // Redirect stdout to the output callback
         [this, onOutput, onProgress](const std::string& output) {
             onOutput(output);

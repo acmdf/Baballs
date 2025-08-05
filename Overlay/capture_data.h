@@ -1,16 +1,23 @@
 #pragma once
-#include <cstdint>
+
 
 typedef struct CaptureFrame {
 #ifdef _MSC_VER
     #pragma pack(push, 1)
 #endif
 
-    // Eye tracking parameters
-    float routinePitch;       // Scaled by FLOAT_TO_INT_CONSTANT
-    float routineYaw;         // Scaled by FLOAT_TO_INT_CONSTANT
-    float routineDistance;    // Target distance for convergence, scaled by FLOAT_TO_INT_CONSTANT
+    // Eye tracking parameters - Unified representation (average gaze)
+    float routinePitch;       // Average pitch angle in degrees
+    float routineYaw;         // Average yaw angle in degrees
+    float routineDistance;    // Physical distance to target in meters
+    float routineConvergence; // Convergence value from 0.0 to 1.0
     float fovAdjustDistance;  // FOV adjustment distance
+    
+    // Individual eye gaze parameters
+    float leftEyePitch;       // Left eye pitch angle in degrees
+    float leftEyeYaw;         // Left eye yaw angle in degrees  
+    float rightEyePitch;      // Right eye pitch angle in degrees
+    float rightEyeYaw;        // Right eye yaw angle in degrees
 
     // lid/brow
     float routineLeftLid;
@@ -33,5 +40,10 @@ typedef struct CaptureFrame {
 
 #ifdef _MSC_VER
     #pragma pack(pop)
+#else
+} __attribute__((packed)) CaptureFrame;
 #endif
+
+#ifdef _MSC_VER
 } CaptureFrame;
+#endif

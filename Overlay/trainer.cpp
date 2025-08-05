@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <numeric>
 #include <chrono>
+#include <deque>
+#include <opencv2/opencv.hpp>
 
 #include "capture_data.h"
 #include "capture_reader.h"
@@ -21,7 +23,7 @@
 // Configuration constants
 #define TRAIN_RESOLUTION 128
 #define NUM_FRAMES 4  // Updated for new model (current frame + 3 previous frames)
-#define NUM_CLASSES 10  // Updated for all eye tracking parameters (excluding fovAdjustDistance)
+#define NUM_CLASSES 3  // Updated for MicroChad model (3 outputs: pitch, yaw, convergence)
 #define ENABLE_CUDA 0  // Set to 1 to enable CUDA, 0 to use CPU only
 
 
@@ -69,6 +71,135 @@ std::wstring to_wstring(const std::string& str) {
     return result;
 }
 
+// Fast corruption detection (ported from trainerte2.py)
+float calculate_row_pattern_consistency(const cv::Mat& image) {
+    cv::Mat gray;
+    if (image.channels() == 3) {
+        cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+    } else {
+        gray = image;
+    }
+    
+    // Normalize to 0-1 range
+    cv::Mat gray_norm;
+    gray.convertTo(gray_norm, CV_32F, 1.0/255.0);
+    
+    // Calculate row means
+    cv::Mat row_means;
+    cv::reduce(gray_norm, row_means, 1, cv::REDUCE_AVG);
+    
+    // Calculate consistency (standard deviation of row differences)
+    if (row_means.rows > 1) {
+        cv::Mat row_diffs;
+        cv::Mat shifted_means = row_means(cv::Range(1, row_means.rows), cv::Range::all());
+        cv::Mat original_means = row_means(cv::Range(0, row_means.rows-1), cv::Range::all());
+        row_diffs = shifted_means - original_means;
+        
+        cv::Scalar mean_diff, stddev_diff;
+        cv::meanStdDev(row_diffs, mean_diff, stddev_diff);
+        return (float)stddev_diff[0];  // Cast to fix warning
+    }
+    return 0.0f;
+}
+
+class FastCorruptionDetector {
+private:
+    float base_threshold;
+    float current_threshold;
+    bool use_adaptive;
+    int adaptation_window;
+    std::deque<float> recent_values;
+    int total_frames;
+    int detected_corrupted_left;
+    int detected_corrupted_right;
+    int threshold_updates;
+
+public:
+    FastCorruptionDetector(float threshold = 0.022669f, bool adaptive = true, int window = 100) 
+        : base_threshold(threshold), current_threshold(threshold), use_adaptive(adaptive),
+          adaptation_window(window), total_frames(0), detected_corrupted_left(0),
+          detected_corrupted_right(0), threshold_updates(0) {}
+    
+    void update_adaptive_threshold(float value) {
+        if (!use_adaptive) return;
+        
+        recent_values.push_back(value);
+        if (recent_values.size() > adaptation_window) {
+            recent_values.pop_front();
+        }
+        
+        if (recent_values.size() < 20) return;
+        
+        // Calculate median and MAD for robust statistics
+        std::vector<float> values(recent_values.begin(), recent_values.end());
+        std::sort(values.begin(), values.end());
+        
+        float median = values[values.size() / 2];
+        
+        // Calculate MAD (Median Absolute Deviation)
+        std::vector<float> abs_deviations;
+        for (float val : values) {
+            abs_deviations.push_back(std::abs(val - median));
+        }
+        std::sort(abs_deviations.begin(), abs_deviations.end());
+        float mad = abs_deviations[abs_deviations.size() / 2];
+        
+        // Set threshold as median + 3*MAD
+        float adaptive_threshold = median + 3.0f * mad;
+        
+        // Clamp to reasonable bounds
+        float min_threshold = base_threshold * 0.5f;
+        float max_threshold = base_threshold * 3.0f;
+        current_threshold = std::max(min_threshold, std::min(max_threshold, adaptive_threshold));
+        threshold_updates++;
+    }
+    
+    bool is_corrupted(const cv::Mat& frame, float* metric_value = nullptr, float* threshold_used = nullptr) {
+        float metric = calculate_row_pattern_consistency(frame);
+        update_adaptive_threshold(metric);
+        
+        bool corrupted = metric > current_threshold;
+        
+        if (metric_value) *metric_value = metric;
+        if (threshold_used) *threshold_used = current_threshold;
+        
+        return corrupted;
+    }
+    
+    struct FramePairResult {
+        bool left_corrupted;
+        bool right_corrupted;
+        float left_value;
+        float right_value;
+        float left_threshold;
+        float right_threshold;
+    };
+    
+    FramePairResult process_frame_pair(const cv::Mat& left_frame, const cv::Mat& right_frame) {
+        total_frames++;
+        
+        FramePairResult result;
+        result.left_corrupted = is_corrupted(left_frame, &result.left_value, &result.left_threshold);
+        result.right_corrupted = is_corrupted(right_frame, &result.right_value, &result.right_threshold);
+        
+        if (result.left_corrupted) detected_corrupted_left++;
+        if (result.right_corrupted) detected_corrupted_right++;
+        
+        return result;
+    }
+    
+    void get_stats() {
+        printf("Corruption detection stats:\n");
+        printf("  Total frames: %d\n", total_frames);
+        printf("  Corrupted left: %d (%.2f%%)\n", detected_corrupted_left, 
+               100.0f * detected_corrupted_left / std::max(1, total_frames));
+        printf("  Corrupted right: %d (%.2f%%)\n", detected_corrupted_right,
+               100.0f * detected_corrupted_right / std::max(1, total_frames));
+        printf("  Current threshold: %.6f\n", current_threshold);
+        printf("  Threshold updates: %d\n", threshold_updates);
+    }
+};
+
 // Structure to hold a temporal sequence of frames with pre-processed images
 struct TemporalSequence {
     std::vector<AlignedFrame> frames;  // Changed to AlignedFrame to match what read_capture_file returns
@@ -86,6 +217,10 @@ std::vector<TemporalSequence> createTemporalSequences(const std::vector<AlignedF
         return sequences;
     }
     
+    // Initialize corruption detector for dataset filtering
+    FastCorruptionDetector corruption_detector;
+    int corrupted_sequences = 0;
+    
     for (size_t i = 0; i <= frames.size() - num_frames; i++) {
         TemporalSequence seq;
         
@@ -94,20 +229,106 @@ std::vector<TemporalSequence> createTemporalSequences(const std::vector<AlignedF
         
         // Check if the most recent frame has FLAG_GOOD_DATA set
         if (std::get<11>(latest_frame.label_data) & FLAG_GOOD_DATA) {
-            seq.is_valid = true;
+            // Decode images to check for corruption (matching trainerte2.py)
+            static thread_local std::vector<uint32_t> left_eye_data;
+            static thread_local std::vector<uint32_t> right_eye_data;
+            int left_width, left_height, right_width, right_height;
             
-            // Collect all frames in the sequence
-            for (int j = 0; j < num_frames; j++) {
-                seq.frames.push_back(frames[i + j]);
+            latest_frame.DecodeImageLeft(left_eye_data, left_width, left_height);
+            latest_frame.DecodeImageRight(right_eye_data, right_width, right_height);
+            
+            // Convert to OpenCV format for corruption detection
+            cv::Mat left_mat(left_height, left_width, CV_8UC4, left_eye_data.data());
+            cv::Mat right_mat(right_height, right_width, CV_8UC4, right_eye_data.data());
+            
+            // Check for corruption
+            auto corruption_result = corruption_detector.process_frame_pair(left_mat, right_mat);
+            
+            if(true){//if (!corruption_result.left_corrupted && !corruption_result.right_corrupted) {
+                seq.is_valid = true;
+                
+                // Collect all frames in the sequence
+                for (int j = 0; j < num_frames; j++) {
+                    seq.frames.push_back(frames[i + j]);
+                }
+                
+                sequences.push_back(seq);
+            } else {
+                corrupted_sequences++;
             }
-            
-            sequences.push_back(seq);
         }
     }
     
     printf("Created %zu valid temporal sequences from %zu frames\n", 
            sequences.size(), frames.size());
+    printf("Excluded %d corrupted sequences\n", corrupted_sequences);
+    corruption_detector.get_stats();
     return sequences;
+}
+
+// Function to calculate dynamic label ranges from the dataset
+struct LabelRanges {
+    float pitch_min, pitch_max, pitch_range;
+    float yaw_min, yaw_max, yaw_range;
+    float convergence_max;
+};
+
+LabelRanges calculateLabelRanges(const std::vector<TemporalSequence>& sequences) {
+    printf("Calculating dynamic label ranges from dataset...\n");
+    
+    std::vector<float> pitches, yaws, convergences;
+    
+    // Collect all label values from sequences
+    for (const auto& sequence : sequences) {
+        if (sequence.is_valid && !sequence.frames.empty()) {
+            const auto& last_frame = sequence.frames.back();
+            
+            float pitch = std::get<0>(last_frame.label_data);
+            float yaw = std::get<1>(last_frame.label_data);
+            float convergence = std::get<2>(last_frame.label_data);
+            
+            pitches.push_back(pitch);
+            yaws.push_back(yaw);
+            convergences.push_back(convergence);
+        }
+    }
+    
+    if (pitches.empty()) {
+        printf("Warning: No valid labels found for range calculation!\n");
+        return {-32.0f, 32.0f, 64.0f, -32.0f, 32.0f, 64.0f, 1.0f};
+    }
+    
+    LabelRanges ranges;
+    
+    // Calculate pitch ranges
+    ranges.pitch_min = *std::min_element(pitches.begin(), pitches.end());
+    ranges.pitch_max = *std::max_element(pitches.begin(), pitches.end());
+    
+    // Calculate yaw ranges  
+    ranges.yaw_min = *std::min_element(yaws.begin(), yaws.end());
+    ranges.yaw_max = *std::max_element(yaws.begin(), yaws.end());
+    
+    // Calculate convergence max
+    ranges.convergence_max = *std::max_element(convergences.begin(), convergences.end());
+    
+    // Calculate symmetric ranges (matching trainerte2.py logic)
+    float pitch_abs_max = std::max(std::abs(ranges.pitch_min), std::abs(ranges.pitch_max));
+    float yaw_abs_max = std::max(std::abs(ranges.yaw_min), std::abs(ranges.yaw_max));
+    
+    ranges.pitch_range = 2.0f * pitch_abs_max;
+    ranges.yaw_range = 2.0f * yaw_abs_max;
+    
+    // Guard against degenerate case
+    if (ranges.pitch_range < 1e-6f) ranges.pitch_range = 1e-6f;
+    if (ranges.yaw_range < 1e-6f) ranges.yaw_range = 1e-6f;
+    if (ranges.convergence_max < 1e-6f) ranges.convergence_max = 1e-6f;
+    
+    printf("Dynamic ranges calculated:\n");
+    printf("  Pitch: [%.3f, %.3f] range=%.3f\n", ranges.pitch_min, ranges.pitch_max, ranges.pitch_range);
+    printf("  Yaw: [%.3f, %.3f] range=%.3f\n", ranges.yaw_min, ranges.yaw_max, ranges.yaw_range);
+    printf("  Convergence max: %.3f\n", ranges.convergence_max);
+    
+    return ranges;
 }
 
 // Function to print parameter info and check for gradient flow
@@ -264,6 +485,9 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "No valid temporal sequences created\n");
         return 1;
     }
+    
+    // Calculate dynamic label ranges (matching trainerte2.py)
+    LabelRanges label_ranges = calculateLabelRanges(sequences);
     
     printf("DEBUG: About to initialize ONNX Runtime...\n");
     fflush(stdout);
@@ -451,8 +675,8 @@ int main(int argc, char* argv[]) {
     std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
     
     // Training configuration
-    const int num_epochs = 16;  // Increased from 2 to 5
-    const size_t batch_size = 16;  // Match Python trainer
+    const int num_epochs = 4;  // Increased from 2 to 5
+    const size_t batch_size = 32;  // Match Python trainer
     const size_t check_interval = 500;  // Check parameters every N batches (reduced frequency)
     const size_t save_interval = 16;    // Save checkpoint every N epochs
     
@@ -509,51 +733,38 @@ int main(int argc, char* argv[]) {
                 //printf("Processing sequence %zu, frame timestamp: %llu\n", 
                 //       indices[batch_start + i], last_frame.label_timestamp);
                 
-                // Extract all eye tracking parameters from capture_data.h structure
-                // Eye tracking parameters (pitch, yaw, distance) - excluding fovAdjustDistance
-                float pitch = ((std::get<0>(last_frame.label_data) / 32.0f) + 1.0f) / 2.0f;  // Convert from [-1,1] to [0,1]
-                float yaw = ((std::get<1>(last_frame.label_data) / 32.0f) + 1.0f) / 2.0f;    // Convert from [-1,1] to [0,1]
-                float distance = std::get<2>(last_frame.label_data);  // routineDistance
-                // Skip fovAdjustDistance (std::get<3>) - used for internal normalization only
+                // Extract MicroChad parameters using dynamic normalization (matching trainerte2.py)
+                float raw_pitch = std::get<0>(last_frame.label_data);
+                float raw_yaw = std::get<1>(last_frame.label_data);
+                float raw_convergence = std::get<2>(last_frame.label_data);
                 
-                // Lid/brow parameters (routineLeftLid, routineRightLid, routineBrowRaise, routineBrowAngry, routineWiden, routineSquint)
-                float leftLid = std::get<4>(last_frame.label_data);     // routineLeftLid
-                float rightLid = std::get<5>(last_frame.label_data);    // routineRightLid
-                float browRaise = std::get<6>(last_frame.label_data);   // routineBrowRaise
-                float browAngry = std::get<7>(last_frame.label_data);   // routineBrowAngry
-                float widen = std::get<8>(last_frame.label_data);       // routineWiden
-                float squint = std::get<9>(last_frame.label_data);      // routineSquint
-                float dilate = std::get<10>(last_frame.label_data);     // routineDilate
+                // Apply dynamic normalization like trainerte2.py
+                float pitch = (raw_pitch - std::min(-label_ranges.pitch_max, label_ranges.pitch_min)) / label_ranges.pitch_range;
+                float yaw = (raw_yaw - std::min(-label_ranges.yaw_max, label_ranges.yaw_min)) / label_ranges.yaw_range;
+                float convergence = raw_convergence / label_ranges.convergence_max;
                 
                 // DEBUG: Check for invalid values
-                float all_params[] = {pitch, yaw, distance, leftLid, rightLid, browRaise, browAngry, widen, squint, dilate};
+                float all_params[] = {pitch, yaw, convergence};
                 bool has_invalid = false;
-                for (int p = 0; p < 10; p++) {
+                for (int p = 0; p < 3; p++) {
                     if (!std::isfinite(all_params[p])) {
                         printf("ERROR: Invalid value at param %d: %f\n", p, all_params[p]);
                         has_invalid = true;
                     }
                 }
                 //if (i == 0) {
-                //    printf("Sample %zu labels: pitch=%.3f yaw=%.3f dist=%.3f lid=%.3f,%.3f brow=%.3f,%.3f other=%.3f,%.3f,%.3f\n",
-                //           i, pitch, yaw, distance, leftLid, rightLid, browRaise, browAngry, widen, squint, dilate);
+                //    printf("Sample %zu labels: pitch=%.3f yaw=%.3f convergence=%.3f\n",
+                //           i, pitch, yaw, convergence);
                 //}
                 if (has_invalid) {
                     printf("Skipping batch due to invalid values\n");
                     continue;
                 }
                 
-                // Fill batch labels with 10 parameters (excluding fovAdjustDistance)
+                // Fill batch labels with 3 parameters for MicroChad model
                 batch_labels[i * NUM_CLASSES + 0] = pitch;
                 batch_labels[i * NUM_CLASSES + 1] = yaw;
-                batch_labels[i * NUM_CLASSES + 2] = distance;
-                batch_labels[i * NUM_CLASSES + 3] = leftLid;
-                batch_labels[i * NUM_CLASSES + 4] = rightLid;
-                batch_labels[i * NUM_CLASSES + 5] = browRaise;
-                batch_labels[i * NUM_CLASSES + 6] = browAngry;
-                batch_labels[i * NUM_CLASSES + 7] = widen;
-                batch_labels[i * NUM_CLASSES + 8] = squint;
-                batch_labels[i * NUM_CLASSES + 9] = dilate;
+                batch_labels[i * NUM_CLASSES + 2] = convergence;
                 
                 // Process all frames in the sequence (most recent frame first)
                 for (int frame_idx = 0; frame_idx < NUM_FRAMES; frame_idx++) {
@@ -568,6 +779,29 @@ int main(int argc, char* argv[]) {
                     // Decode eye images (uses existing caching)
                     frame.DecodeImageLeft(left_eye_data, left_width, left_height);
                     frame.DecodeImageRight(right_eye_data, right_width, right_height);
+                    
+                    // Apply histogram equalization (matching trainerte2.py preprocessing)
+                    // Convert to OpenCV format for histogram equalization
+                    cv::Mat left_mat(left_height, left_width, CV_8UC4, left_eye_data.data());
+                    cv::Mat right_mat(right_height, right_width, CV_8UC4, right_eye_data.data());
+                    cv::Mat left_gray, right_gray;
+                    cv::cvtColor(left_mat, left_gray, cv::COLOR_BGRA2GRAY);
+                    cv::cvtColor(right_mat, right_gray, cv::COLOR_BGRA2GRAY);
+                    cv::equalizeHist(left_gray, left_gray);
+                    cv::equalizeHist(right_gray, right_gray);
+                    
+                    // Convert back to uint32_t format using direct pointer access
+                    uint8_t* left_ptr = left_gray.ptr<uint8_t>();
+                    uint8_t* right_ptr = right_gray.ptr<uint8_t>();
+                    
+                    for (int i = 0; i < left_width * left_height; i++) {
+                        uint8_t gray_val = left_ptr[i];
+                        left_eye_data[i] = gray_val | (gray_val << 8) | (gray_val << 16) | (0xFF << 24);
+                    }
+                    for (int i = 0; i < right_width * right_height; i++) {
+                        uint8_t gray_val = right_ptr[i];
+                        right_eye_data[i] = gray_val | (gray_val << 8) | (gray_val << 16) | (0xFF << 24);
+                    }
                     
                     // Calculate offsets in the batch tensor
                     size_t frame_offset = i * 2 * NUM_FRAMES * TRAIN_RESOLUTION * TRAIN_RESOLUTION + 

@@ -41,7 +41,7 @@ void beep(int frequency, int duration) {
 constexpr float MAX_YAW_ANGLE = 45.0f;    // Maximum yaw angle in degrees
 constexpr float MAX_PITCH_ANGLE = 30.0f;  // Maximum pitch angle in degrees
 
-#define TIME_BETWEEN_ROUTINES 30
+#define TIME_BETWEEN_ROUTINES 60
 #define STAGE_NOTIFICATION_DURATION 20.0f  // 20 seconds for countdown stages
 #define STAGE_ACTION_DURATION 5.0f        // 5 seconds for action stages  
 #define CONVERGENCE_TEST_DURATION 20.0f   // 20 seconds for convergence test
@@ -52,6 +52,7 @@ bool RoutineController::m_stepWritten = false;
 double_t RoutineController::m_globalAdvancedTime = 0.0;
 int RoutineController::m_routineStage = 0;
 double_t RoutineController::m_stageStartTime = 0.0;
+double_t RoutineController::m_fixedStageDuration = 0.0;
 
 RoutineController::RoutineController(float maxMoveSpeed)
     : m_currentOpIndex(0)
@@ -128,6 +129,9 @@ int RoutineController::getTimeTillNext(){
             stageDuration = STAGE_ACTION_DURATION;
         }
     }
+
+    if(m_routineStage == FIXED_POSITION_STAGE)
+        stageDuration = 180; // 3 minutes
     
     int timeLeft = (int)(stageDuration - stageElapsed);
     return timeLeft > 0 ? timeLeft : 0;
@@ -311,6 +315,17 @@ TargetPosition RoutineController::calculatePosition()
             return calculateDilationPosition();
         }
         
+        // Handle fixed position test stages
+        if(RoutineController::m_routineStage >= FIXED_POSITION_NOTIFY_STAGE && RoutineController::m_routineStage <= FIXED_POSITION_STAGE){
+            printf("In fixed position stage %d\n", RoutineController::m_routineStage);
+            // Keep crosshair at center for both notification and test stages
+            m_currentPosition.pitch = 0.0f;
+            m_currentPosition.yaw = 0.0f;
+            m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
+            m_currentPosition.state = FLAG_IN_MOVEMENT;
+            return m_currentPosition;
+        }
+        
         // For other stages before convergence test, keep crosshair at center
         if(RoutineController::m_routineStage >= 3 && RoutineController::m_routineStage < CONVERGENCE_NOTIFY_STAGE){
             m_currentPosition.pitch = 0.0f;
@@ -324,6 +339,11 @@ TargetPosition RoutineController::calculatePosition()
     // Don't run legacy S-pattern code if routine is complete
     if(isComplete()) {
         return m_currentPosition; // Position already set in early return above
+    }
+    
+    // Don't run S-pattern code if we've already advanced to later stages
+    if(RoutineController::m_routineStage >= 3) {
+        return m_currentPosition; // Position already set by earlier stage handlers
     }
     
     // Initial calibration period
@@ -341,62 +361,21 @@ TargetPosition RoutineController::calculatePosition()
     
     
 
-    // S-pattern parameters
+    // STRIPPED S-PATTERN LOGIC - Jump directly to fixed position test
     float scanTime = (float)(m_elapsedTime - TIME_BETWEEN_ROUTINES);
-    const float maxPitch = 32.0f;  // Vertical range
-    const float maxYaw = 32.0f;    // Horizontal range
-    const float moveSpeed = 12.0f;  // Units per second
     
-    // Use parametric equations for a continuous S-curve
-    // This approach uses a single time parameter to generate the entire path
+    // Show brief crosshair movement for 5 seconds, then jump to fixed position
+    /*if(scanTime > 5.0f && RoutineController::m_routineStage < FIXED_POSITION_NOTIFY_STAGE){
+        RoutineController::m_routineStage = FIXED_POSITION_NOTIFY_STAGE;
+        RoutineController::m_stageStartTime = m_elapsedTime;
+        beep(174, 500);
+        printf("Jumping to fixed position test at stage %d\n", FIXED_POSITION_NOTIFY_STAGE);
+    }*/
     
-    // Calculate total path time (arbitrary scaling to control speed)
-    const float totalTime = 60.0f;  // seconds for one complete cycle
-
-    if((m_elapsedTime - TIME_BETWEEN_ROUTINES) > totalTime && (m_elapsedTime - TIME_BETWEEN_ROUTINES) < totalTime + 5){
-        scanTime = totalTime + 0.1f;
-    }else if((m_elapsedTime - TIME_BETWEEN_ROUTINES) > totalTime + 5){
-        scanTime = (float)(m_elapsedTime - (TIME_BETWEEN_ROUTINES + 5));
-    }
-    
-    // Normalize time to 0-1 range for one complete cycle
-    float t = fmod(scanTime, totalTime) / totalTime;
-    
-    // Number of complete S-curves in vertical direction
-    const int numCycles = 2;  // 4 complete S-curves vertically
-    
-    // Parametric equations for S-curve
-    // x = A * sin(2π * t)
-    // y = B * t
-    
-    // Scale to fit our desired range
-    float yaw = (maxYaw / 2) * sin(2 * M_PI * numCycles * t);
-    float pitch = maxPitch * (t - 0.5f);  // Map t from [0,1] to pitch [-maxPitch/2, maxPitch/2]
-    
-    // Update position
+    // Keep crosshair centered during the brief demo period
     m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
-    if(scanTime > totalTime * 2){
-        // Transition to facial expression calibration after gaze calibration
-        // Only transition if we're not already past stage 3 (i.e., don't interrupt completed routines)
-        if(RoutineController::m_routineStage < 3) {
-            RoutineController::m_routineStage = 3;
-            RoutineController::m_stageStartTime = m_elapsedTime; // Initialize stage timer
-            beep(174, 500);
-            printf("Initial transition to stage 3 at time %.2f\n", m_elapsedTime);
-        }
-    }else if(scanTime > totalTime){
-        RoutineController::m_routineStage = 2;
-        m_currentPosition.pitch = yaw;
-        m_currentPosition.yaw = pitch;
-    //}else if(scanTime > totalTime){
-        //float terp = (scanTime-totalTime) / 2;
-        //float newYaw = (pitch * terp) + yaw * (1-terp);
-        //float newPitch = (yaw * terp) + pitch * (1-terp);
-    }else{
-        RoutineController::m_routineStage = 1;
-        m_currentPosition.pitch = pitch;
-        m_currentPosition.yaw = yaw;
-    }
+    m_currentPosition.pitch = 0.0f;
+    m_currentPosition.yaw = 0.0f;
     
     m_currentPosition.state = FLAG_IN_MOVEMENT;
     
@@ -607,12 +586,17 @@ void RoutineController::handleStageProgression()
             stageDuration = DILATION_GRADIENT_DURATION; // Gradient fade
             //printf("STAGE22_DEBUG: elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n", 
             //       stageElapsed, stageDuration, (stageElapsed >= stageDuration));
+        } else if(RoutineController::m_routineStage == FIXED_POSITION_STAGE) {
+            stageDuration = 180.0f; // 180 seconds for fixed position test
         } else {
             stageDuration = STAGE_ACTION_DURATION;
         }
         shouldAdvance = (stageElapsed >= stageDuration);
     }
     
+    printf("Stage %d : elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n", 
+                   RoutineController::m_routineStage, stageElapsed, stageDuration, shouldAdvance);
+
     // Advance to next stage if time is up
     if(shouldAdvance) {
         RoutineController::m_routineStage++;
@@ -621,7 +605,7 @@ void RoutineController::handleStageProgression()
         
         printf("Advanced to stage %d at time %.2f\n", RoutineController::m_routineStage, m_elapsedTime);
         
-        // End routine after dilation test
+        // End routine after fixed position test
         if(RoutineController::m_routineStage > MAX_ROUTINE_STAGE) {
             printf("COMPLETION_DEBUG: Stage %d > MAX_ROUTINE_STAGE(%d), setting to COMPLETION_STAGE(%d)\n", 
                    RoutineController::m_routineStage, MAX_ROUTINE_STAGE, COMPLETION_STAGE);

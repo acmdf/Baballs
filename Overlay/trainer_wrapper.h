@@ -22,7 +22,7 @@ public:
      * 
      * @param trainerPath Path to the trainer executable (defaults to "trainer.exe")
      */
-    explicit TrainerWrapper(const std::string& trainerPath = "calibration_runner.exe");
+    explicit TrainerWrapper(const std::string& trainerPath = "venv");
 
     /**
      * @brief Start the training process
