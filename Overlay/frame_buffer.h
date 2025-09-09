@@ -23,12 +23,12 @@ public:
     unsigned char* getFrameCopy(int* width, int* height, uint64_t* time, size_t* data_size);
 
     void setTargetResolution(int width, int height);
-    
+
     // Get direct access to the current frame buffer (no copy)
     //void lockFrame(int** pixels, int* width, int* height);
     //void unlockFrame();
     void setURL(const char* url);
-    
+
     // Control methods
     void start();
     void stop();
@@ -42,7 +42,7 @@ private:
         int height = 0;
         uint64_t time = 0;
         size_t frame_size = 0;
-        
+
         void clear() {
             if (pixels) {
                 free(pixels);
@@ -58,22 +58,22 @@ private:
     // Swap front and back buffers
     void swapBuffers();
 
-    int* resizeFrame(int* sourcePixels, int sourceWidth, int sourceHeight, 
+    int* resizeFrame(int* sourcePixels, int sourceWidth, int sourceHeight,
         int targetWidth, int targetHeight);
 
     // Original stream
     MJPEGStream* stream = nullptr;
     const char* streamUrl;
-    
+
     // Double buffer
     Frame buffers[2];
     int frontBuffer; // Index of the current front buffer
-    
+
     // Thread control
     std::atomic<bool> running;
     std::thread updateThread;
     int updateIntervalMs;
-    
+
     // Synchronization
     std::mutex frameMutex;
     std::condition_variable frameCondition;

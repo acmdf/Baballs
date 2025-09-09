@@ -7,10 +7,10 @@
 
 /**
  * @brief Spawns a child process and provides callbacks for output and completion
- * 
+ *
  * This function creates a new process with the specified program and arguments,
  * and provides callbacks for standard output, standard error, and process completion.
- * 
+ *
  * @param program The path to the executable to run
  * @param params Command line arguments for the program
  * @param onStdOut Callback function that receives stdout output as it becomes available
@@ -28,7 +28,7 @@ bool spawnProcess(
 
 /**
  * @brief ProcessRunner class that handles the details of spawning and managing processes
- * 
+ *
  * This class contains the platform-specific implementation details for process management.
  * It's generally not needed to use this class directly - use the spawnProcess function instead.
  */
@@ -39,7 +39,7 @@ public:
 
     /**
      * @brief Spawns a child process with the specified parameters
-     * 
+     *
      * @param program The path to the executable to run
      * @param args Command line arguments for the program
      * @param onStdOut Callback function for stdout output

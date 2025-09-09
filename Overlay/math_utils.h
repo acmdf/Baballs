@@ -78,7 +78,7 @@ struct MU_UnifiedGaze {
 
 /* Convergence calculation parameters - adjustable for tuning */
 struct MU_ConvergenceParams {
-    float maxConvergenceAngle;    // Maximum expected convergence angle in degrees (default: ~6°)
+    float maxConvergenceAngle;    // Maximum expected convergence angle in degrees (default: ~6�)
     float minConvergenceDistance; // Minimum focus distance in meters (default: 0.1m)
     float maxConvergenceDistance; // Maximum focus distance in meters (default: 10.0m)
     float ipdMeters;             // Interpupillary distance in meters (default: 0.064m)
