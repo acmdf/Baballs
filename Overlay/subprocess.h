@@ -1,9 +1,9 @@
 #ifndef SUBPROCESS_H
 #define SUBPROCESS_H
 
+#include <functional>
 #include <string>
 #include <vector>
-#include <functional>
 
 /**
  * @brief Spawns a child process and provides callbacks for output and completion
@@ -23,8 +23,7 @@ bool spawnProcess(
     const std::vector<std::string>& params,
     std::function<void(const std::string&)> onStdOut,
     std::function<void(const std::string&)> onStdErr,
-    std::function<void(int)> onComplete
-);
+    std::function<void(int)> onComplete);
 
 /**
  * @brief ProcessRunner class that handles the details of spawning and managing processes
@@ -52,8 +51,7 @@ public:
         const std::vector<std::string>& args,
         OutputCallback onStdOut,
         OutputCallback onStdErr,
-        CompletionCallback onComplete
-    );
+        CompletionCallback onComplete);
 
 private:
 #ifdef _WIN32
@@ -62,16 +60,14 @@ private:
         const std::vector<std::string>& args,
         OutputCallback onStdOut,
         OutputCallback onStdErr,
-        CompletionCallback onComplete
-    );
+        CompletionCallback onComplete);
 #else
     static bool spawnProcessUnix(
         const std::string& program,
         const std::vector<std::string>& args,
         OutputCallback onStdOut,
         OutputCallback onStdErr,
-        CompletionCallback onComplete
-    );
+        CompletionCallback onComplete);
 #endif
 };
 

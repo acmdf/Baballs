@@ -1,17 +1,17 @@
 #include "subprocess.h"
-#include <thread>
-#include <iostream>
 #include <array>
+#include <iostream>
+#include <thread>
 
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
+#include <unistd.h>
 #endif
 
 bool spawnProcess(
@@ -19,8 +19,7 @@ bool spawnProcess(
     const std::vector<std::string>& params,
     std::function<void(const std::string&)> onStdOut,
     std::function<void(const std::string&)> onStdErr,
-    std::function<void(int)> onComplete
-) {
+    std::function<void(int)> onComplete) {
     return ProcessRunner::spawnProcess(program, params, onStdOut, onStdErr, onComplete);
 }
 
@@ -29,8 +28,7 @@ bool ProcessRunner::spawnProcess(
     const std::vector<std::string>& args,
     OutputCallback onStdOut,
     OutputCallback onStdErr,
-    CompletionCallback onComplete
-) {
+    CompletionCallback onComplete) {
 #ifdef _WIN32
     return spawnProcessWindows(program, args, onStdOut, onStdErr, onComplete);
 #else
@@ -44,8 +42,7 @@ bool ProcessRunner::spawnProcessWindows(
     const std::vector<std::string>& args,
     OutputCallback onStdOut,
     OutputCallback onStdErr,
-    CompletionCallback onComplete
-) {
+    CompletionCallback onComplete) {
     // Build command line
     std::string cmdLine = "\"" + program + "\"";
     for (const auto& arg : args) {
@@ -62,8 +59,7 @@ bool ProcessRunner::spawnProcessWindows(
     HANDLE stdoutRead, stdoutWrite;
     HANDLE stderrRead, stderrWrite;
 
-    if (!CreatePipe(&stdoutRead, &stdoutWrite, &saAttr, 0) ||
-        !CreatePipe(&stderrRead, &stderrWrite, &saAttr, 0)) {
+    if (!CreatePipe(&stdoutRead, &stdoutWrite, &saAttr, 0) || !CreatePipe(&stderrRead, &stderrWrite, &saAttr, 0)) {
         return false;
     }
 
@@ -89,16 +85,16 @@ bool ProcessRunner::spawnProcessWindows(
 
     // Create the child process
     BOOL success = CreateProcessA(
-        NULL,                   // No module name (use command line)
+        NULL,                               // No module name (use command line)
         const_cast<LPSTR>(cmdLine.c_str()), // Command line
-        NULL,                   // Process handle not inheritable
-        NULL,                   // Thread handle not inheritable
-        TRUE,                   // Handles are inherited
-        0,                      // No creation flags
-        NULL,                   // Use parent's environment block
-        NULL,                   // Use parent's starting directory
-        &si,                    // Pointer to STARTUPINFO
-        &pi                     // Pointer to PROCESS_INFORMATION
+        NULL,                               // Process handle not inheritable
+        NULL,                               // Thread handle not inheritable
+        TRUE,                               // Handles are inherited
+        0,                                  // No creation flags
+        NULL,                               // Use parent's environment block
+        NULL,                               // Use parent's starting directory
+        &si,                                // Pointer to STARTUPINFO
+        &pi                                 // Pointer to PROCESS_INFORMATION
     );
 
     printf("DEBUG: CreateProcessA result: %s\n", success ? "SUCCESS" : "FAILED");
@@ -131,7 +127,7 @@ bool ProcessRunner::spawnProcessWindows(
         }
         printf("DEBUG: stdout reading thread ending (ReadFile returned false or 0 bytes)\n");
         CloseHandle(stdoutRead);
-        });
+    });
 
     std::thread stderrThread([stderrRead, onStdErr]() {
         printf("DEBUG: stderr reading thread started\n");
@@ -148,7 +144,7 @@ bool ProcessRunner::spawnProcessWindows(
         }
         printf("DEBUG: stderr reading thread ending (ReadFile returned false or 0 bytes)\n");
         CloseHandle(stderrRead);
-        });
+    });
 
     // Wait for process to complete
     std::thread completionThread([pi, onComplete]() {
@@ -163,7 +159,7 @@ bool ProcessRunner::spawnProcessWindows(
         CloseHandle(pi.hThread);
 
         onComplete(static_cast<int>(exitCode));
-        });
+    });
 
     // Detach threads to let them run independently
     stdoutThread.detach();
@@ -178,8 +174,7 @@ bool ProcessRunner::spawnProcessUnix(
     const std::vector<std::string>& args,
     OutputCallback onStdOut,
     OutputCallback onStdErr,
-    CompletionCallback onComplete
-) {
+    CompletionCallback onComplete) {
     // Create pipes for stdout and stderr
     int stdoutPipe[2];
     int stderrPipe[2];
@@ -219,7 +214,7 @@ bool ProcessRunner::spawnProcessUnix(
         for (const auto& arg : args) {
             cargs.push_back(const_cast<char*>(arg.c_str()));
         }
-        cargs.push_back(nullptr);  // Null-terminate the array
+        cargs.push_back(nullptr); // Null-terminate the array
 
         // Execute the program
         execvp(program.c_str(), cargs.data());
@@ -247,17 +242,15 @@ bool ProcessRunner::spawnProcessUnix(
             if (bytesRead > 0) {
                 buffer[bytesRead] = '\0';
                 onStdOut(std::string(buffer, bytesRead));
-            }
-            else if (bytesRead == 0 || (bytesRead == -1 && errno != EAGAIN)) {
+            } else if (bytesRead == 0 || (bytesRead == -1 && errno != EAGAIN)) {
                 break;
-            }
-            else {
+            } else {
                 // No data available, sleep a bit
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
         close(stdoutPipe[0]);
-        });
+    });
 
     std::thread stderrThread([stderrPipe, onStdErr]() {
         char buffer[4096];
@@ -267,17 +260,15 @@ bool ProcessRunner::spawnProcessUnix(
             if (bytesRead > 0) {
                 buffer[bytesRead] = '\0';
                 onStdErr(std::string(buffer, bytesRead));
-            }
-            else if (bytesRead == 0 || (bytesRead == -1 && errno != EAGAIN)) {
+            } else if (bytesRead == 0 || (bytesRead == -1 && errno != EAGAIN)) {
                 break;
-            }
-            else {
+            } else {
                 // No data available, sleep a bit
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
         close(stderrPipe[0]);
-        });
+    });
 
     // Wait for process to complete
     std::thread completionThread([pid, onComplete]() {
@@ -287,13 +278,12 @@ bool ProcessRunner::spawnProcessUnix(
         int exitCode = 0;
         if (WIFEXITED(status)) {
             exitCode = WEXITSTATUS(status);
-        }
-        else if (WIFSIGNALED(status)) {
+        } else if (WIFSIGNALED(status)) {
             exitCode = 128 + WTERMSIG(status);
         }
 
         onComplete(exitCode);
-        });
+    });
 
     // Detach threads to let them run independently
     stdoutThread.detach();

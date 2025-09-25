@@ -5,8 +5,7 @@
 
 TrainerWrapper::TrainerWrapper(const std::string& trainerPath)
     : m_trainerPath(trainerPath)
-    , m_isRunning(false)
-{
+    , m_isRunning(false) {
 }
 
 bool TrainerWrapper::start(
@@ -14,8 +13,7 @@ bool TrainerWrapper::start(
     const std::string& outputFile,
     OutputCallback onOutput,
     ProgressCallback onProgress,
-    CompletionCallback onCompleted
-) {
+    CompletionCallback onCompleted) {
     if (m_isRunning) {
         std::cerr << "Training process is already running" << std::endl;
         return false;
@@ -25,7 +23,7 @@ bool TrainerWrapper::start(
     m_progressParser.Reset();
 
     // Prepare arguments for Python script via venv
-    std::vector<std::string> args = { "trainermin.exe", datasetFile, outputFile };
+    std::vector<std::string> args = { "python", "trainermin.py", datasetFile, outputFile };
 
     // Start the trainer process using venv Python
     bool success = spawnProcess(
@@ -56,14 +54,13 @@ bool TrainerWrapper::start(
         // Handle process completion
         [this, onCompleted](int exitCode) {
             m_isRunning = false;
-            
+
             if (exitCode != 0) {
                 std::cerr << "Trainer process exited with code: " << exitCode << std::endl;
             }
-            
+
             onCompleted();
-        }
-    );
+        });
 
     if (success) {
         m_isRunning = true;

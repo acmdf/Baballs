@@ -1,15 +1,13 @@
 #include "frame_buffer.h"
-#include "jpeg_stream.h"  // Include the correct header file
-#include <cstring>        // for memcpy
+#include "jpeg_stream.h" // Include the correct header file
 #include <chrono>
-#include <cstdlib>        // for malloc/free
-#include <stdio.h>        // for printf
+#include <cstdlib> // for malloc/free
+#include <cstring> // for memcpy
+#include <stdio.h> // for printf
 
 // Define STB_IMAGE_RESIZE_IMPLEMENTATION in exactly one source file
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stb_image_resize.h"  // You'll need to download this header
-
-
+#include "stb_image_resize.h" // You'll need to download this header
 
 #ifdef _WIN32
 #include <windows.h>
@@ -33,8 +31,7 @@ uint64_t current_time_ms_2(void) { // todo: utils class
 
     if (clock_gettime(CLOCK_REALTIME, &spec) == 0) {
         return (uint64_t)(spec.tv_sec * 1000ULL + spec.tv_nsec / 1000000ULL);
-    }
-    else {
+    } else {
         // Fallback to gettimeofday if clock_gettime is not available
         struct timeval tv;
         gettimeofday(&tv, NULL);
@@ -44,42 +41,42 @@ uint64_t current_time_ms_2(void) { // todo: utils class
 }
 
 FrameBuffer::FrameBuffer(const char* url, int updateInterval)
-    : streamUrl(url),
-    frontBuffer(0),
-    running(false),
-    updateIntervalMs(updateInterval),
-    frameInUse(false),
-    targetWidth(0),
-    targetHeight(0),
-    resizeEnabled(false) {
+    : streamUrl(url)
+    , frontBuffer(0)
+    , running(false)
+    , updateIntervalMs(updateInterval)
+    , frameInUse(false)
+    , targetWidth(0)
+    , targetHeight(0)
+    , resizeEnabled(false) {
     // Initialize empty buffers
     buffers[0].clear();
     buffers[1].clear();
 }
 
 FrameBuffer::FrameBuffer(const char* url, int targetWidth, int targetHeight, int updateInterval)
-    : streamUrl(url),
-    frontBuffer(0),
-    running(false),
-    updateIntervalMs(updateInterval),
-    frameInUse(false),
-    targetWidth(targetWidth),
-    targetHeight(targetHeight),
-    resizeEnabled(true) {
+    : streamUrl(url)
+    , frontBuffer(0)
+    , running(false)
+    , updateIntervalMs(updateInterval)
+    , frameInUse(false)
+    , targetWidth(targetWidth)
+    , targetHeight(targetHeight)
+    , resizeEnabled(true) {
     // Initialize empty buffers
     buffers[0].clear();
     buffers[1].clear();
 }
 
 FrameBuffer::FrameBuffer(int targetWidth, int targetHeight, int updateInterval)
-    : streamUrl(nullptr),
-    frontBuffer(0),
-    running(false),
-    updateIntervalMs(updateInterval),
-    frameInUse(false),
-    targetWidth(targetWidth),
-    targetHeight(targetHeight),
-    resizeEnabled(true) {
+    : streamUrl(nullptr)
+    , frontBuffer(0)
+    , running(false)
+    , updateIntervalMs(updateInterval)
+    , frameInUse(false)
+    , targetWidth(targetWidth)
+    , targetHeight(targetHeight)
+    , resizeEnabled(true) {
     // Initialize empty buffers
     buffers[0].clear();
     buffers[1].clear();
@@ -151,9 +148,8 @@ bool FrameBuffer::isRunning() const {
 }
 
 int* FrameBuffer::resizeFrame(int* sourcePixels, int sourceWidth, int sourceHeight,
-    int targetWidth, int targetHeight) {
-    if (!sourcePixels || sourceWidth <= 0 || sourceHeight <= 0 ||
-        targetWidth <= 0 || targetHeight <= 0) {
+                              int targetWidth, int targetHeight) {
+    if (!sourcePixels || sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) {
         return nullptr;
     }
 
@@ -170,7 +166,7 @@ int* FrameBuffer::resizeFrame(int* sourcePixels, int sourceWidth, int sourceHeig
     int result = stbir_resize_uint8(
         reinterpret_cast<const unsigned char*>(sourcePixels), sourceWidth, sourceHeight, sourceWidth * sizeof(int),
         reinterpret_cast<unsigned char*>(targetPixels), targetWidth, targetHeight, targetWidth * sizeof(int),
-        4  // Number of channels (RGBA)
+        4 // Number of channels (RGBA)
     );
 
     if (result == 0) {
@@ -183,28 +179,28 @@ int* FrameBuffer::resizeFrame(int* sourcePixels, int sourceWidth, int sourceHeig
 }
 
 void FrameBuffer::updateLoop() {
-    //printf("Update loop 1\n");
+    // printf("Update loop 1\n");
     while (running) {
         // Decode a new frame
         int width, height;
         uint64_t timestamp;
         size_t frame_size;
-        //printf("Update loop 2\n");
+        // printf("Update loop 2\n");
         unsigned char* pixels = DecodeFrame(stream, &width, &height, &timestamp, &frame_size);
 
-        //FILE* fp = fopen("./good_data2.bin", "wb");
-        //if (fp) {
-        //    fwrite(pixels, 1, frame_size, fp);
-        //    fclose(fp);
-        //    printf("Dumped bad JPEG data to bad_data4.bin (%u bytes)\n", frame_size);
-        //}
+        // FILE* fp = fopen("./good_data2.bin", "wb");
+        // if (fp) {
+        //     fwrite(pixels, 1, frame_size, fp);
+        //     fclose(fp);
+        //     printf("Dumped bad JPEG data to bad_data4.bin (%u bytes)\n", frame_size);
+        // }
 
-        //printf("Update loop 3\n");
+        // printf("Update loop 3\n");
         uint64_t time = current_time_ms_2();
-        //printf("Update loop 4\n");
+        // printf("Update loop 4\n");
         if (pixels) {
-            //printf("Update loop 5\n");
-            // Get back buffer index
+            // printf("Update loop 5\n");
+            //  Get back buffer index
             int backBuffer = 1 - frontBuffer;
 
             // Clear old back buffer
@@ -237,11 +233,11 @@ void FrameBuffer::updateLoop() {
                 buffers[backBuffer].height = height;
 
             }*/
-            //if(buffers[backBuffer].pixels)
-            //    free(buffers[backBuffer].pixels);
+            // if(buffers[backBuffer].pixels)
+            //     free(buffers[backBuffer].pixels);
 
             buffers[backBuffer].pixels = (unsigned char*)malloc(frame_size);
-            //buffers[backBuffer].pixels = pixels;
+            // buffers[backBuffer].pixels = pixels;
             buffers[backBuffer].width = width;
             buffers[backBuffer].height = height;
 
@@ -262,8 +258,8 @@ void FrameBuffer::updateLoop() {
             // Swap buffers (thread-safe operation)
             swapBuffers();
         }
-        //printf("Update loop 6\n");
-        // Sleep for a while
+        // printf("Update loop 6\n");
+        //  Sleep for a while
         std::this_thread::sleep_for(std::chrono::milliseconds(updateIntervalMs));
     }
 }
@@ -312,13 +308,11 @@ unsigned char* FrameBuffer::getFrameCopy(int* width, int* height, uint64_t* time
         *height = front.height;
         *time = front.time;
         *data_size = front.frame_size;
-    }
-    else {
+    } else {
         *width = *height = 0;
         *time = 0;
         *data_size = 0;
     }
-
 
     return copy;
 }

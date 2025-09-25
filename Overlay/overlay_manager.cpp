@@ -1,36 +1,36 @@
 #include "overlay_manager.h"
-#include "routine.h"
 #include "flags.h"
+#include "routine.h"
 #include "video_player.h"
-#include <cstring>
-#include <cmath>
-#include <string>
 #include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <string>
 
 #ifndef max
-#define max(a,b) ((a) > (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
 #ifndef min
-#define min(a,b) ((a) < (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
 // Video playback settings
-#define VIDEO_PLAYBACK_RATE 30.0f  // Adjustable FPS for video playback
-#define VIDEO_TEXTURE_WIDTH 854
+#define VIDEO_PLAYBACK_RATE  30.0f // Adjustable FPS for video playback
+#define VIDEO_TEXTURE_WIDTH  854
 #define VIDEO_TEXTURE_HEIGHT 480
 
 // Target texture constants
-#define TARGET_TEXTURE_WIDTH 512
+#define TARGET_TEXTURE_WIDTH  512
 #define TARGET_TEXTURE_HEIGHT 512
 
-#define BORDER_TEXTURE_WIDTH 512
+#define BORDER_TEXTURE_WIDTH  512
 #define BORDER_TEXTURE_HEIGHT 512
 
 // Text overlay constants
-#define TEXT_TEXTURE_WIDTH 1920
+#define TEXT_TEXTURE_WIDTH  1920
 #define TEXT_TEXTURE_HEIGHT 1080
 
 float g_AnimationProgress = 0.0f;
@@ -49,48 +49,47 @@ bool OverlayManager::s_routineSampleWritten = false;
 
 bool OverlayManager::s_positionInitialized = false;
 
-OverlayManager::OverlayManager() :
-    m_ulOverlayHandle(vr::k_ulOverlayHandleInvalid),
-    m_ulThumbnailHandle(vr::k_ulOverlayHandleInvalid),
-    m_ulBorderOverlayHandle(vr::k_ulOverlayHandleInvalid),
-    m_ulTextOverlayHandle(vr::k_ulOverlayHandleInvalid),
-    m_ulVideoOverlayHandle(vr::k_ulOverlayHandleInvalid),
-    m_glTextureId(0),
-    m_glBorderTextureId(0),
-    m_glTextTextureId(0),
-    m_glVideoTextureId(0),
-    m_nTextureWidth(TARGET_TEXTURE_WIDTH),
-    m_nTextureHeight(TARGET_TEXTURE_HEIGHT),
-    m_borderTextureWidth(BORDER_TEXTURE_WIDTH),
-    m_borderTextureHeight(BORDER_TEXTURE_HEIGHT),
-    m_textTextureWidth(TEXT_TEXTURE_WIDTH),
-    m_textTextureHeight(TEXT_TEXTURE_HEIGHT),
-    m_videoTextureWidth(VIDEO_TEXTURE_WIDTH),
-    m_videoTextureHeight(VIDEO_TEXTURE_HEIGHT),
-    m_pTextureData(nullptr),
-    m_borderTextureData(nullptr),
-    m_textTextureData(nullptr),
-    m_videoTextureData(nullptr),
-    m_targetYawAngle(0.0f),
-    m_targetPitchAngle(0.0f),
-    m_isVisible(true),
-    m_targetIsPreview(false),
-    m_isFixedPositionMode(false),
-    g_routineController(RoutineController(1.15f)),
-    m_hWnd(NULL),
-    m_hDC(NULL),
-    m_hRC(NULL),
-    m_showText(true),
-    m_displayText("TEST TEST TEST"),
-    m_fontBuffer(nullptr),
-    m_fontSize(48.0f)  // Default font size
+OverlayManager::OverlayManager()
+    : m_ulOverlayHandle(vr::k_ulOverlayHandleInvalid)
+    , m_ulThumbnailHandle(vr::k_ulOverlayHandleInvalid)
+    , m_ulBorderOverlayHandle(vr::k_ulOverlayHandleInvalid)
+    , m_ulTextOverlayHandle(vr::k_ulOverlayHandleInvalid)
+    , m_ulVideoOverlayHandle(vr::k_ulOverlayHandleInvalid)
+    , m_glTextureId(0)
+    , m_glBorderTextureId(0)
+    , m_glTextTextureId(0)
+    , m_glVideoTextureId(0)
+    , m_nTextureWidth(TARGET_TEXTURE_WIDTH)
+    , m_nTextureHeight(TARGET_TEXTURE_HEIGHT)
+    , m_borderTextureWidth(BORDER_TEXTURE_WIDTH)
+    , m_borderTextureHeight(BORDER_TEXTURE_HEIGHT)
+    , m_textTextureWidth(TEXT_TEXTURE_WIDTH)
+    , m_textTextureHeight(TEXT_TEXTURE_HEIGHT)
+    , m_videoTextureWidth(VIDEO_TEXTURE_WIDTH)
+    , m_videoTextureHeight(VIDEO_TEXTURE_HEIGHT)
+    , m_pTextureData(nullptr)
+    , m_borderTextureData(nullptr)
+    , m_textTextureData(nullptr)
+    , m_videoTextureData(nullptr)
+    , m_targetYawAngle(0.0f)
+    , m_targetPitchAngle(0.0f)
+    , m_isVisible(true)
+    , m_targetIsPreview(false)
+    , m_isFixedPositionMode(false)
+    , g_routineController(RoutineController(1.15f))
+    , m_hWnd(NULL)
+    , m_hDC(NULL)
+    , m_hRC(NULL)
+    , m_showText(true)
+    , m_displayText("TEST TEST TEST")
+    , m_fontBuffer(nullptr)
+    , m_fontSize(48.0f) // Default font size
 {
     // Initialize font struct to zero
     memset(&m_font, 0, sizeof(m_font));
 }
 
-OverlayManager::~OverlayManager()
-{
+OverlayManager::~OverlayManager() {
     // Clear glyph cache
     for (auto& pair : m_glyphCache) {
         free(pair.second.bitmap);
@@ -122,7 +121,6 @@ void OverlayManager::StartRoutine(uint32_t routine) {
 
     }*/
 
-
     RoutineController::m_fixedStageDuration = 0.5 + routine;
 
     g_routineController.loadRoutine(routine);
@@ -133,8 +131,7 @@ void OverlayManager::StartRoutine(uint32_t routine) {
     RoutineController::m_routineStage = 0;
 }
 
-bool OverlayManager::Initialize()
-{
+bool OverlayManager::Initialize() {
     g_routineController.loadRoutine(11);
 
     printf("Loaded routine 11, state: %u\n", g_routineController.getStateFlags());
@@ -142,8 +139,7 @@ bool OverlayManager::Initialize()
     g_routineController.reset();
 
     // Initialize OpenGL first
-    if (!InitializeOpenGL())
-    {
+    if (!InitializeOpenGL()) {
         printf("Failed to initialize OpenGL\n");
         return false;
     }
@@ -156,8 +152,7 @@ bool OverlayManager::Initialize()
 
     // Create the main target overlay
     vr::VROverlayError overlayError = vr::VROverlay()->CreateOverlay("peripheral_vision_target", "Peripheral Vision Target", &m_ulOverlayHandle);
-    if (overlayError != vr::VROverlayError_None)
-    {
+    if (overlayError != vr::VROverlayError_None) {
         printf("Failed to create overlay with error: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(overlayError));
         return false;
     }
@@ -165,8 +160,7 @@ bool OverlayManager::Initialize()
 
     // Create the border overlay
     overlayError = vr::VROverlay()->CreateOverlay("peripheral_vision_border", "Peripheral Vision Border", &m_ulBorderOverlayHandle);
-    if (overlayError != vr::VROverlayError_None)
-    {
+    if (overlayError != vr::VROverlayError_None) {
         printf("Failed to create border overlay with error: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(overlayError));
         vr::VROverlay()->DestroyOverlay(m_ulOverlayHandle);
         m_ulOverlayHandle = vr::k_ulOverlayHandleInvalid;
@@ -176,8 +170,7 @@ bool OverlayManager::Initialize()
 
     // Create the text overlay
     overlayError = vr::VROverlay()->CreateOverlay("peripheral_vision_text", "Peripheral Vision Text", &m_ulTextOverlayHandle);
-    if (overlayError != vr::VROverlayError_None)
-    {
+    if (overlayError != vr::VROverlayError_None) {
         printf("Failed to create text overlay with error: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(overlayError));
         vr::VROverlay()->DestroyOverlay(m_ulOverlayHandle);
         vr::VROverlay()->DestroyOverlay(m_ulBorderOverlayHandle);
@@ -189,8 +182,7 @@ bool OverlayManager::Initialize()
 
     // Create the video overlay
     overlayError = vr::VROverlay()->CreateOverlay("peripheral_vision_video", "Peripheral Vision Video", &m_ulVideoOverlayHandle);
-    if (overlayError != vr::VROverlayError_None)
-    {
+    if (overlayError != vr::VROverlayError_None) {
         printf("Failed to create video overlay with error: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(overlayError));
         vr::VROverlay()->DestroyOverlay(m_ulOverlayHandle);
         vr::VROverlay()->DestroyOverlay(m_ulBorderOverlayHandle);
@@ -204,8 +196,7 @@ bool OverlayManager::Initialize()
 
     // Create the thumbnail overlay
     overlayError = vr::VROverlay()->CreateOverlay("peripheral_vision_target_thumb", "Peripheral Vision Target Thumbnail", &m_ulThumbnailHandle);
-    if (overlayError != vr::VROverlayError_None)
-    {
+    if (overlayError != vr::VROverlayError_None) {
         printf("Failed to create thumbnail overlay with error: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(overlayError));
         vr::VROverlay()->DestroyOverlay(m_ulOverlayHandle);
         vr::VROverlay()->DestroyOverlay(m_ulBorderOverlayHandle);
@@ -226,25 +217,22 @@ bool OverlayManager::Initialize()
 
     // Set text overlay properties
     vr::VROverlay()->SetOverlayWidthInMeters(m_ulTextOverlayHandle, 1.0f); // Adjust as needed
-    vr::VROverlay()->SetOverlayAlpha(m_ulTextOverlayHandle, 1.0f); // Full opacity for text
+    vr::VROverlay()->SetOverlayAlpha(m_ulTextOverlayHandle, 1.0f);         // Full opacity for text
 
     // Set video overlay properties
     vr::VROverlay()->SetOverlayWidthInMeters(m_ulVideoOverlayHandle, 0.5f); // Smaller size
-    vr::VROverlay()->SetOverlayAlpha(m_ulVideoOverlayHandle, 1.0f); // Full opacity for video
+    vr::VROverlay()->SetOverlayAlpha(m_ulVideoOverlayHandle, 1.0f);         // Full opacity for video
 
     printf("Setting overlay width to: %.2f meters\n", TARGET_SIZE_METERS);
     printf("Setting border overlay width to: %.2f meters\n", TARGET_SIZE_METERS * BORDER_SIZE_RATIO);
 
     // Make sure the overlays are visible when created
-    if (!m_isVisible)
-    {
+    if (!m_isVisible) {
         vr::VROverlay()->HideOverlay(m_ulOverlayHandle);
         vr::VROverlay()->HideOverlay(m_ulBorderOverlayHandle);
         vr::VROverlay()->HideOverlay(m_ulTextOverlayHandle);
         vr::VROverlay()->HideOverlay(m_ulVideoOverlayHandle);
-    }
-    else
-    {
+    } else {
         vr::VROverlayError showError = vr::VROverlay()->ShowOverlay(m_ulOverlayHandle);
         printf("Show target overlay result: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(showError));
         showError = vr::VROverlay()->ShowOverlay(m_ulBorderOverlayHandle);
@@ -256,8 +244,7 @@ bool OverlayManager::Initialize()
     }
 
     // Create the target texture
-    if (!CreateTargetTexture())
-    {
+    if (!CreateTargetTexture()) {
         Shutdown();
         return false;
     }
@@ -277,7 +264,8 @@ bool OverlayManager::Initialize()
 bool OverlayManager::InitializeFont(const char* fontPath, float fontSize) {
     // Load font file
     FILE* fontFile = fopen(fontPath, "rb");
-    if (!fontFile) return false;
+    if (!fontFile)
+        return false;
     fseek(fontFile, 0, SEEK_END);
     long size = ftell(fontFile);
     fseek(fontFile, 0, SEEK_SET);
@@ -295,7 +283,8 @@ bool OverlayManager::InitializeFont(const char* fontPath, float fontSize) {
 }
 
 void OverlayManager::RenderText(const std::string& text, int x, int y, uint32_t color) {
-    if (!m_fontBuffer || !m_textTextureData) return;
+    if (!m_fontBuffer || !m_textTextureData)
+        return;
 
     float scale = stbtt_ScaleForPixelHeight(&m_font, m_fontSize);
     int ascent, descent, lineGap;
@@ -321,8 +310,7 @@ void OverlayManager::RenderText(const std::string& text, int x, int y, uint32_t 
             // Move to next line
             baseline -= (int)m_fontSize;
             currentLine = "";
-        }
-        else {
+        } else {
             currentLine += text[pos];
         }
         pos++;
@@ -330,7 +318,8 @@ void OverlayManager::RenderText(const std::string& text, int x, int y, uint32_t 
 }
 
 void OverlayManager::RenderSingleLine(const std::string& line, int x, int baseline, uint32_t color) {
-    if (!m_fontBuffer || !m_textTextureData) return;
+    if (!m_fontBuffer || !m_textTextureData)
+        return;
 
     float scale = stbtt_ScaleForPixelHeight(&m_font, m_fontSize);
     int cursorX = x;
@@ -348,8 +337,7 @@ void OverlayManager::RenderSingleLine(const std::string& line, int x, int baseli
                 &m_font, 0, scale, c, &width, &height, &xoff, &yoff);
             glyph = { width, height, xoff, yoff, bitmap };
             m_glyphCache[c] = glyph;
-        }
-        else {
+        } else {
             glyph = it->second;
         }
 
@@ -363,19 +351,15 @@ void OverlayManager::RenderSingleLine(const std::string& line, int x, int baseli
                 int pixelX = cursorX + k + glyph.xoff;
                 int pixelY = baseline - (glyph.yoff + j);
 
-                if (pixelX >= 0 && pixelX < m_textTextureWidth &&
-                    pixelY >= 0 && pixelY < m_textTextureHeight) {
+                if (pixelX >= 0 && pixelX < m_textTextureWidth && pixelY >= 0 && pixelY < m_textTextureHeight) {
                     unsigned char alpha = glyph.bitmap[j * glyph.width + k];
                     if (alpha > 0) {
                         int index = (pixelY * m_textTextureWidth + pixelX) * 4;
                         // Apply alpha blending
                         float a = alpha / 255.0f;
-                        m_textTextureData[index + 0] = (uint8_t)(((color >> 16) & 0xFF) * a +
-                            m_textTextureData[index + 0] * (1 - a));
-                        m_textTextureData[index + 1] = (uint8_t)(((color >> 8) & 0xFF) * a +
-                            m_textTextureData[index + 1] * (1 - a));
-                        m_textTextureData[index + 2] = (uint8_t)((color & 0xFF) * a +
-                            m_textTextureData[index + 2] * (1 - a));
+                        m_textTextureData[index + 0] = (uint8_t)(((color >> 16) & 0xFF) * a + m_textTextureData[index + 0] * (1 - a));
+                        m_textTextureData[index + 1] = (uint8_t)(((color >> 8) & 0xFF) * a + m_textTextureData[index + 1] * (1 - a));
+                        m_textTextureData[index + 2] = (uint8_t)((color & 0xFF) * a + m_textTextureData[index + 2] * (1 - a));
                         m_textTextureData[index + 3] = 255;
                     }
                 }
@@ -392,7 +376,8 @@ void OverlayManager::RenderSingleLine(const std::string& line, int x, int baseli
 }
 
 int OverlayManager::MeasureTextWidth(const std::string& text) {
-    if (!m_fontBuffer) return (int)(text.length() * 8); // Fallback
+    if (!m_fontBuffer)
+        return (int)(text.length() * 8); // Fallback
 
     float scale = stbtt_ScaleForPixelHeight(&m_font, m_fontSize);
     int max_width = 0;
@@ -427,7 +412,8 @@ int OverlayManager::MeasureTextWidth(const std::string& text) {
 }
 
 int OverlayManager::MeasureLineWidth(const std::string& line) {
-    if (!m_fontBuffer) return (int)(line.length() * 8); // Fallback
+    if (!m_fontBuffer)
+        return (int)(line.length() * 8); // Fallback
 
     float scale = stbtt_ScaleForPixelHeight(&m_font, m_fontSize);
     int width = 0;
@@ -471,7 +457,8 @@ void OverlayManager::DrawLine(int x1, int y1, int x2, int y2, uint32_t color) {
     while (true) {
         DrawPixel(x, y, color);
 
-        if (x == x2 && y == y2) break;
+        if (x == x2 && y == y2)
+            break;
 
         int e2 = 2 * err;
         if (e2 > -dy) {
@@ -488,12 +475,12 @@ void OverlayManager::DrawLine(int x1, int y1, int x2, int y2, uint32_t color) {
 void OverlayManager::RenderLossGraph(const std::vector<float>& lossHistory, int x, int y, int width, int height) {
     if (lossHistory.size() < 2 || !m_textTextureData) {
         printf("DEBUG: RenderLossGraph early return - size=%zu, textData=%p\n",
-            lossHistory.size(), m_textTextureData);
+               lossHistory.size(), m_textTextureData);
         return;
     }
 
     printf("DEBUG: RenderLossGraph called - pos(%d,%d) size(%dx%d) history=%zu\n",
-        x, y, width, height, lossHistory.size());
+           x, y, width, height, lossHistory.size());
 
     // Use fixed range from 0 to 0.1 since we're clamping values
     float minLoss = 0.0f;
@@ -503,9 +490,9 @@ void OverlayManager::RenderLossGraph(const std::vector<float>& lossHistory, int 
     printf("DEBUG: Using fixed loss range: 0.0 to 0.1\n");
 
     // Colors
-    uint32_t axisColor = 0xFFFFFF;   // White axes
-    uint32_t lineColor = TARGET_COLOR & 0x00FFFFFF;   // Use TARGET_COLOR from config.h (strip alpha)
-    uint32_t gridColor = 0x404040;   // Dark gray grid
+    uint32_t axisColor = 0xFFFFFF;                  // White axes
+    uint32_t lineColor = TARGET_COLOR & 0x00FFFFFF; // Use TARGET_COLOR from config.h (strip alpha)
+    uint32_t gridColor = 0x404040;                  // Dark gray grid
 
     // Draw background rectangle (optional, for contrast)
     for (int py = y; py < y + height; py++) {
@@ -526,7 +513,7 @@ void OverlayManager::RenderLossGraph(const std::vector<float>& lossHistory, int 
 
     // Draw axes
     DrawLine(x, y + height - 1, x + width - 1, y + height - 1, axisColor); // X-axis (bottom)
-    DrawLine(x, y, x, y + height - 1, axisColor); // Y-axis (left)
+    DrawLine(x, y, x, y + height - 1, axisColor);                          // Y-axis (left)
 
     // Draw loss curve
     for (size_t i = 1; i < lossHistory.size(); i++) {
@@ -556,8 +543,7 @@ void OverlayManager::RenderLossGraph(const std::vector<float>& lossHistory, int 
 void OverlayManager::SetDisplayString(const char* text) {
     if (text == NULL) {
         m_showText = false;
-    }
-    else {
+    } else {
         m_showText = true;
         m_displayText = text;
     }
@@ -576,7 +562,8 @@ void OverlayManager::SetDisplayString(const char* text) {
             // Count lines to determine total height
             int lineCount = 1;
             for (char c : m_displayText) {
-                if (c == '\n') lineCount++;
+                if (c == '\n')
+                    lineCount++;
             }
 
             int totalTextHeight = lineCount * (int)m_fontSize;
@@ -589,7 +576,7 @@ void OverlayManager::SetDisplayString(const char* text) {
         // Update the texture
         glBindTexture(GL_TEXTURE_2D, m_glTextTextureId);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_textTextureWidth, m_textTextureHeight,
-            GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
+                        GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
 
         // Update the text overlay with the new texture
         vr::Texture_t textTexture = { 0 };
@@ -606,11 +593,10 @@ void OverlayManager::SetDisplayString(const char* text) {
 
 void OverlayManager::SetDisplayStringWithGraph(const char* text, const std::vector<float>& lossHistory) {
     printf("DEBUG: SetDisplayStringWithGraph called - text=%s, lossHistory.size()=%zu\n",
-        text ? "non-null" : "null", lossHistory.size());
+           text ? "non-null" : "null", lossHistory.size());
     if (text == NULL) {
         m_showText = false;
-    }
-    else {
+    } else {
         m_showText = true;
         m_displayText = text;
     }
@@ -628,7 +614,8 @@ void OverlayManager::SetDisplayStringWithGraph(const char* text, const std::vect
             // Calculate vertical center position for the text block
             int lineCount = 1;
             for (char c : m_displayText) {
-                if (c == '\n') lineCount++;
+                if (c == '\n')
+                    lineCount++;
             }
 
             int totalTextHeight = lineCount * (int)m_fontSize;
@@ -642,23 +629,22 @@ void OverlayManager::SetDisplayStringWithGraph(const char* text, const std::vect
         if (lossHistory.size() > 1) {
             int graphWidth = 400;
             int graphHeight = 200;
-            int graphX = (m_textTextureWidth - graphWidth) / 2;  // Center horizontally
+            int graphX = (m_textTextureWidth - graphWidth) / 2; // Center horizontally
             int graphY = 200;
 
             printf("DEBUG: About to render graph at (%d,%d) size(%dx%d) on texture %dx%d\n",
-                graphX, graphY, graphWidth, graphHeight, m_textTextureWidth, m_textTextureHeight);
+                   graphX, graphY, graphWidth, graphHeight, m_textTextureWidth, m_textTextureHeight);
 
             // Render graph directly to texture data (already in proper OpenGL context)
             RenderLossGraph(lossHistory, graphX, graphY, graphWidth, graphHeight);
-        }
-        else {
+        } else {
             printf("DEBUG: Not rendering graph - lossHistory.size()=%zu\n", lossHistory.size());
         }
 
         // Update the texture - SINGLE UPDATE
         glBindTexture(GL_TEXTURE_2D, m_glTextTextureId);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_textTextureWidth, m_textTextureHeight,
-            GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
+                        GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
 
         // Update the text overlay with the new texture
         vr::Texture_t textTexture = { 0 };
@@ -673,27 +659,23 @@ void OverlayManager::SetDisplayStringWithGraph(const char* text, const std::vect
     }
 }
 
-bool OverlayManager::InitializeOpenGL()
-{
+bool OverlayManager::InitializeOpenGL() {
     // Create a dummy window for OpenGL context
     WNDCLASS wc = { 0 };
     wc.lpfnWndProc = DefWindowProc;
     wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = L"OVRDummyClass";
-    if (!RegisterClass(&wc))
-    {
+    wc.lpszClassName = "OVRDummyClass";
+    if (!RegisterClass(&wc)) {
         printf("Failed to register window class\n");
         return false;
     }
-    m_hWnd = CreateWindow(L"OVRDummyClass", L"Dummy OpenGL Window", 0, 0, 0, 1, 1, NULL, NULL, GetModuleHandle(NULL), NULL);
-    if (!m_hWnd)
-    {
+    m_hWnd = CreateWindow("OVRDummyClass", "Dummy OpenGL Window", 0, 0, 0, 1, 1, NULL, NULL, GetModuleHandle(NULL), NULL);
+    if (!m_hWnd) {
         printf("Failed to create dummy window\n");
         return false;
     }
     m_hDC = GetDC(m_hWnd);
-    if (!m_hDC)
-    {
+    if (!m_hDC) {
         printf("Failed to get device context\n");
         DestroyWindow(m_hWnd);
         m_hWnd = NULL;
@@ -708,8 +690,7 @@ bool OverlayManager::InitializeOpenGL()
     pfd.cDepthBits = 24;
     pfd.cStencilBits = 8;
     int pixelFormat = ChoosePixelFormat(m_hDC, &pfd);
-    if (!pixelFormat)
-    {
+    if (!pixelFormat) {
         printf("Failed to choose pixel format\n");
         ReleaseDC(m_hWnd, m_hDC);
         DestroyWindow(m_hWnd);
@@ -717,8 +698,7 @@ bool OverlayManager::InitializeOpenGL()
         m_hWnd = NULL;
         return false;
     }
-    if (!SetPixelFormat(m_hDC, pixelFormat, &pfd))
-    {
+    if (!SetPixelFormat(m_hDC, pixelFormat, &pfd)) {
         printf("Failed to set pixel format\n");
         ReleaseDC(m_hWnd, m_hDC);
         DestroyWindow(m_hWnd);
@@ -727,8 +707,7 @@ bool OverlayManager::InitializeOpenGL()
         return false;
     }
     m_hRC = wglCreateContext(m_hDC);
-    if (!m_hRC)
-    {
+    if (!m_hRC) {
         printf("Failed to create OpenGL rendering context\n");
         ReleaseDC(m_hWnd, m_hDC);
         DestroyWindow(m_hWnd);
@@ -736,8 +715,7 @@ bool OverlayManager::InitializeOpenGL()
         m_hWnd = NULL;
         return false;
     }
-    if (!wglMakeCurrent(m_hDC, m_hRC))
-    {
+    if (!wglMakeCurrent(m_hDC, m_hRC)) {
         printf("Failed to make OpenGL context current\n");
         wglDeleteContext(m_hRC);
         ReleaseDC(m_hWnd, m_hDC);
@@ -751,126 +729,103 @@ bool OverlayManager::InitializeOpenGL()
     return true;
 }
 
-void OverlayManager::Shutdown()
-{
+void OverlayManager::Shutdown() {
     // Destroy the overlays
-    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         vr::VROverlay()->DestroyOverlay(m_ulOverlayHandle);
         m_ulOverlayHandle = vr::k_ulOverlayHandleInvalid;
     }
 
-    if (m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+    if (m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         vr::VROverlay()->DestroyOverlay(m_ulBorderOverlayHandle);
         m_ulBorderOverlayHandle = vr::k_ulOverlayHandleInvalid;
     }
 
-    if (m_ulTextOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+    if (m_ulTextOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         vr::VROverlay()->DestroyOverlay(m_ulTextOverlayHandle);
         m_ulTextOverlayHandle = vr::k_ulOverlayHandleInvalid;
     }
-    if (m_ulVideoOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+    if (m_ulVideoOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         vr::VROverlay()->DestroyOverlay(m_ulVideoOverlayHandle);
         m_ulVideoOverlayHandle = vr::k_ulOverlayHandleInvalid;
     }
 
     // Destroy the thumbnail overlay
-    if (m_ulThumbnailHandle != vr::k_ulOverlayHandleInvalid)
-    {
+    if (m_ulThumbnailHandle != vr::k_ulOverlayHandleInvalid) {
         vr::VROverlay()->DestroyOverlay(m_ulThumbnailHandle);
         m_ulThumbnailHandle = vr::k_ulOverlayHandleInvalid;
     }
 
     // Delete OpenGL textures
-    if (m_glTextureId != 0)
-    {
+    if (m_glTextureId != 0) {
         glDeleteTextures(1, &m_glTextureId);
         m_glTextureId = 0;
     }
 
-    if (m_glBorderTextureId != 0)
-    {
+    if (m_glBorderTextureId != 0) {
         glDeleteTextures(1, &m_glBorderTextureId);
         m_glBorderTextureId = 0;
     }
 
-    if (m_glTextTextureId != 0)
-    {
+    if (m_glTextTextureId != 0) {
         glDeleteTextures(1, &m_glTextTextureId);
         m_glTextTextureId = 0;
     }
-    if (m_glVideoTextureId != 0)
-    {
+    if (m_glVideoTextureId != 0) {
         glDeleteTextures(1, &m_glVideoTextureId);
         m_glVideoTextureId = 0;
     }
 
     // Free texture data memory
-    if (m_pTextureData != nullptr)
-    {
+    if (m_pTextureData != nullptr) {
         delete[] m_pTextureData;
         m_pTextureData = nullptr;
     }
-    if (m_borderTextureData != nullptr)
-    {
+    if (m_borderTextureData != nullptr) {
         delete[] m_borderTextureData;
         m_borderTextureData = nullptr;
     }
-    if (m_textTextureData != nullptr)
-    {
+    if (m_textTextureData != nullptr) {
         delete[] m_textTextureData;
         m_textTextureData = nullptr;
     }
-    if (m_videoTextureData != nullptr)
-    {
+    if (m_videoTextureData != nullptr) {
         delete[] m_videoTextureData;
         m_videoTextureData = nullptr;
     }
 
     // Clean up OpenGL
-    if (m_hRC)
-    {
+    if (m_hRC) {
         wglMakeCurrent(NULL, NULL);
         wglDeleteContext(m_hRC);
         m_hRC = NULL;
     }
-    if (m_hDC && m_hWnd)
-    {
+    if (m_hDC && m_hWnd) {
         ReleaseDC(m_hWnd, m_hDC);
         m_hDC = NULL;
     }
-    if (m_hWnd)
-    {
+    if (m_hWnd) {
         DestroyWindow(m_hWnd);
         m_hWnd = NULL;
     }
 }
 
-void OverlayManager::UpdateAnimation()
-{
+void OverlayManager::UpdateAnimation() {
     g_AnimationProgress += 0.010f;
     // Update the target position
     SetFixedTargetPosition(0.0f, 0.0f);
 }
 
-void OverlayManager::Update()
-{
+void OverlayManager::Update() {
     // Update video playback
     static int updateCallCount = 0;
     if (updateCallCount++ % 60 == 0) { // Debug every 60 calls
-        printf("Update() called %d times, calling UpdateVideoPlayback()...\n", updateCallCount);
+        // printf("Update() called %d times, calling UpdateVideoPlayback()...\n", updateCallCount);
     }
     UpdateVideoPlayback();
 
     // Only update if the overlays are valid
-    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid &&
-        m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid &&
-        m_ulTextOverlayHandle != vr::k_ulOverlayHandleInvalid &&
-        m_ulVideoOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid && m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid && m_ulTextOverlayHandle != vr::k_ulOverlayHandleInvalid && m_ulVideoOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         // Check if we need to recreate texture for dilation calibration
         static uint32_t lastDilationState = 0;
         bool isDilationStage = (s_routineState & (FLAG_DILATION_BLACK | FLAG_DILATION_WHITE | FLAG_DILATION_GRADIENT));
@@ -885,8 +840,7 @@ void OverlayManager::Update()
             if (s_routineState & FLAG_DILATION_GRADIENT) {
                 needsTextureRecreation = true; // Always update during gradient fade
             }
-        }
-        else if (lastDilationState & (FLAG_DILATION_BLACK | FLAG_DILATION_WHITE | FLAG_DILATION_GRADIENT)) {
+        } else if (lastDilationState & (FLAG_DILATION_BLACK | FLAG_DILATION_WHITE | FLAG_DILATION_GRADIENT)) {
             // We were in a dilation stage but aren't anymore - need to recreate normal textures
             needsTextureRecreation = true;
         }
@@ -894,7 +848,7 @@ void OverlayManager::Update()
         if (needsTextureRecreation) {
             // Recreate texture for dilation stages or when transitioning in/out of dilation
             printf("Recreating textures: isDilationStage=%d, lastState=0x%08X, currentState=0x%08X, stage=%d\n",
-                isDilationStage, lastDilationState, s_routineState, RoutineController::m_routineStage);
+                   isDilationStage, lastDilationState, s_routineState, RoutineController::m_routineStage);
             CreateTargetTexture();
             UpdateOverlayTexture();
             lastDilationState = s_routineState;
@@ -907,18 +861,14 @@ void OverlayManager::Update()
     }
 }
 
-void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
-{
+void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition) {
     // Only update if the overlays are valid
-    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid &&
-        m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid &&
-        m_ulTextOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid && m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid && m_ulTextOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         // Set overlay size based on current state
         bool isDilationStage = (s_routineState & (FLAG_DILATION_BLACK | FLAG_DILATION_WHITE | FLAG_DILATION_GRADIENT));
         if (isDilationStage) {
             // Make overlay much larger for full-screen dilation effect
-            vr::VROverlay()->SetOverlayWidthInMeters(m_ulOverlayHandle, 10.0f); // 10 meters wide for full FOV
+            vr::VROverlay()->SetOverlayWidthInMeters(m_ulOverlayHandle, 10.0f);      // 10 meters wide for full FOV
             vr::VROverlay()->SetOverlayWidthInMeters(m_ulBorderOverlayHandle, 0.0f); // Hide border during dilation
 
             // Show text during notification stages but hide during action stages
@@ -926,12 +876,10 @@ void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
             bool isNotificationStage = (RoutineController::m_routineStage == DILATION_NOTIFY_2_STAGE || RoutineController::m_routineStage == DILATION_NOTIFY_3_STAGE);
             if (isNotificationStage) {
                 vr::VROverlay()->SetOverlayWidthInMeters(m_ulTextOverlayHandle, 2.0f); // Show text overlay during notifications
-            }
-            else {
+            } else {
                 vr::VROverlay()->SetOverlayWidthInMeters(m_ulTextOverlayHandle, 0.0f); // Hide text during action stages
             }
-        }
-        else {
+        } else {
             // Normal crosshair size
             vr::VROverlay()->SetOverlayWidthInMeters(m_ulOverlayHandle, TARGET_SIZE_METERS);
             vr::VROverlay()->SetOverlayWidthInMeters(m_ulBorderOverlayHandle, TARGET_SIZE_METERS * BORDER_SIZE_RATIO);
@@ -941,8 +889,7 @@ void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
             bool showVideo = ShouldShowVideoForStage(RoutineController::m_routineStage);
             if (showVideo && g_VideoEnabled) {
                 vr::VROverlay()->SetOverlayWidthInMeters(m_ulVideoOverlayHandle, 0.5f);
-            }
-            else {
+            } else {
                 vr::VROverlay()->SetOverlayWidthInMeters(m_ulVideoOverlayHandle, 0.0f);
             }
         }
@@ -994,19 +941,16 @@ void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
             OverlayManager::s_routineYaw = yaw;
             OverlayManager::s_routineDistance = distance;
             g_routineController.step();
-        }
-        else {
+        } else {
             // Normal HMD-relative positioning
             if (m_targetIsPreview) {
                 yaw = m_targetYawAngle;
                 pitch = m_targetPitchAngle;
                 distance = TARGET_DEFAULT_DISTANCE;
-            }
-            else {
+            } else {
                 if (g_routineController.isComplete()) {
                     OverlayManager::s_routineState = FLAG_ROUTINE_COMPLETE;
-                }
-                else {
+                } else {
                     TargetPosition pos = g_routineController.step();
                     yaw = pos.yaw;
                     pitch = pos.pitch;
@@ -1046,8 +990,7 @@ void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
                 m_ulBorderOverlayHandle,
                 vr::TrackingUniverseStanding,
                 &borderTransform);
-        }
-        else {
+        } else {
             vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
                 m_ulBorderOverlayHandle,
                 vr::k_unTrackedDeviceIndex_Hmd,
@@ -1061,9 +1004,9 @@ void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
         textTransform.m[2][2] = 1.0f;
 
         // Position text at bottom of view field
-        textTransform.m[0][3] = 0.0f; // Center horizontally
+        textTransform.m[0][3] = 0.0f;   // Center horizontally
         textTransform.m[1][3] = -0.19f; // Bottom of view (adjust as needed)
-        textTransform.m[2][3] = -0.5f; // 1 meter in front
+        textTransform.m[2][3] = -0.5f;  // 1 meter in front
 
         vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
             m_ulTextOverlayHandle,
@@ -1077,8 +1020,8 @@ void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
         videoTransform.m[2][2] = 1.0f;
 
         // Position video at top right of view
-        videoTransform.m[0][3] = 0.0f; // Right side
-        videoTransform.m[1][3] = 0.0f; // Top of view
+        videoTransform.m[0][3] = 0.0f;  // Right side
+        videoTransform.m[1][3] = 0.0f;  // Top of view
         videoTransform.m[2][3] = -0.5f; // 1 meter in front
 
         vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
@@ -1088,8 +1031,7 @@ void OverlayManager::UpdateOverlayTransform(const MU_Vector3& targetPosition)
     }
 }
 
-bool OverlayManager::CreateTargetTexture()
-{
+bool OverlayManager::CreateTargetTexture() {
     // Make sure OpenGL context is current
     wglMakeCurrent(m_hDC, m_hRC);
 
@@ -1113,8 +1055,7 @@ bool OverlayManager::CreateTargetTexture()
     m_textTextureData = new uint8_t[m_textTextureWidth * m_textTextureHeight * 4];
     m_videoTextureData = new uint8_t[m_videoTextureWidth * m_videoTextureHeight * 4];
 
-    if (!m_pTextureData || !m_borderTextureData || !m_textTextureData || !m_videoTextureData)
-    {
+    if (!m_pTextureData || !m_borderTextureData || !m_textTextureData || !m_videoTextureData) {
         printf("Failed to allocate texture data memory\n");
         return false;
     }
@@ -1156,8 +1097,7 @@ bool OverlayManager::CreateTargetTexture()
         printf("OpenGL errors during texture generation: Target=%d, Border=%d, Text=%d, Video=%d\n", err1, err2, err3, err4);
     }
 
-    if (m_glTextureId == 0 || m_glBorderTextureId == 0 || m_glTextTextureId == 0 || m_glVideoTextureId == 0)
-    {
+    if (m_glTextureId == 0 || m_glBorderTextureId == 0 || m_glTextTextureId == 0 || m_glVideoTextureId == 0) {
         printf("Failed to generate OpenGL textures\n");
         if (m_pTextureData) {
             delete[] m_pTextureData;
@@ -1198,14 +1138,13 @@ bool OverlayManager::CreateTargetTexture()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
         printf("Textures created successfully with IDs: Target=%u, Border=%u, Text=%u\n",
-            m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
+               m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
         return true; // Skip drawing crosshair for black screen
-    }
-    else if (s_routineState & FLAG_DILATION_WHITE) {
+    } else if (s_routineState & FLAG_DILATION_WHITE) {
         // Fill with fully white screen
         for (int i = 0; i < m_nTextureWidth * m_nTextureHeight; i++) {
             m_pTextureData[i * 4 + 0] = 255; // Red
-            m_pTextureData[i * 4 + 1] = 255; // Green  
+            m_pTextureData[i * 4 + 1] = 255; // Green
             m_pTextureData[i * 4 + 2] = 255; // Blue
             m_pTextureData[i * 4 + 3] = 255; // Alpha
         }
@@ -1219,20 +1158,19 @@ bool OverlayManager::CreateTargetTexture()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
         printf("Textures created successfully with IDs: Target=%u, Border=%u, Text=%u\n",
-            m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
+               m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
         return true; // Skip drawing crosshair for white screen
-    }
-    else if (s_routineState & FLAG_DILATION_GRADIENT) {
+    } else if (s_routineState & FLAG_DILATION_GRADIENT) {
         // Handle gradient fade from white to black
         // The fade progress is stored in s_routineFadeProgress (0.0 = white, 1.0 = black)
-        float fadeProgress = s_routineFadeProgress; // 0.0 to 1.0
+        float fadeProgress = s_routineFadeProgress;                    // 0.0 to 1.0
         uint8_t grayValue = (uint8_t)(255.0f * (1.0f - fadeProgress)); // 255 = white, 0 = black
 
         for (int i = 0; i < m_nTextureWidth * m_nTextureHeight; i++) {
             m_pTextureData[i * 4 + 0] = grayValue; // Red
-            m_pTextureData[i * 4 + 1] = grayValue; // Green  
+            m_pTextureData[i * 4 + 1] = grayValue; // Green
             m_pTextureData[i * 4 + 2] = grayValue; // Blue
-            m_pTextureData[i * 4 + 3] = 255;      // Alpha
+            m_pTextureData[i * 4 + 3] = 255;       // Alpha
         }
 
         // Upload the gradient texture to OpenGL
@@ -1244,7 +1182,7 @@ bool OverlayManager::CreateTargetTexture()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
         printf("Textures created successfully with IDs: Target=%u, Border=%u, Text=%u\n",
-            m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
+               m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
         return true; // Skip drawing crosshair for gradient screen
     }
 
@@ -1255,17 +1193,14 @@ bool OverlayManager::CreateTargetTexture()
     int thickness = TARGET_LINE_THICKNESS;
 
     // Draw the target (a circle)
-    for (int y = 0; y < m_nTextureHeight; y++)
-    {
-        for (int x = 0; x < m_nTextureWidth; x++)
-        {
+    for (int y = 0; y < m_nTextureHeight; y++) {
+        for (int x = 0; x < m_nTextureWidth; x++) {
             // Calculate distance from center
             int dx = x - centerX;
             int dy = y - centerY;
             float distance = sqrt(static_cast<float>(dx * dx + dy * dy));
             // Draw the circle with the specified thickness
-            if (distance >= radius - thickness && distance <= radius + thickness)
-            {
+            if (distance >= radius - thickness && distance <= radius + thickness) {
                 int index = (y * m_nTextureWidth + x) * 4;
                 // RGBA format
                 m_pTextureData[index + 0] = (TARGET_COLOR >> 16) & 0xFF; // R
@@ -1277,14 +1212,10 @@ bool OverlayManager::CreateTargetTexture()
     }
 
     // Draw crosshairs
-    for (int y = 0; y < m_nTextureHeight; y++)
-    {
-        for (int x = 0; x < m_nTextureWidth; x++)
-        {
+    for (int y = 0; y < m_nTextureHeight; y++) {
+        for (int x = 0; x < m_nTextureWidth; x++) {
             // Horizontal and vertical lines through the center
-            if ((abs(y - centerY) <= thickness && x >= centerX - radius && x <= centerX + radius) ||
-                (abs(x - centerX) <= thickness && y >= centerY - radius && y <= centerY + radius))
-            {
+            if ((abs(y - centerY) <= thickness && x >= centerX - radius && x <= centerX + radius) || (abs(x - centerX) <= thickness && y >= centerY - radius && y <= centerY + radius)) {
                 int index = (y * m_nTextureWidth + x) * 4;
                 // RGBA format
                 m_pTextureData[index + 0] = (TARGET_COLOR >> 16) & 0xFF; // R
@@ -1337,7 +1268,7 @@ bool OverlayManager::CreateTargetTexture()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_nTextureWidth, m_nTextureHeight,
-        0, GL_RGBA, GL_UNSIGNED_BYTE, m_pTextureData);
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, m_pTextureData);
 
     // Setup border texture
     glBindTexture(GL_TEXTURE_2D, m_glBorderTextureId);
@@ -1346,7 +1277,7 @@ bool OverlayManager::CreateTargetTexture()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_borderTextureWidth, m_borderTextureHeight,
-        0, GL_RGBA, GL_UNSIGNED_BYTE, m_borderTextureData);
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, m_borderTextureData);
 
     // Setup text texture
     glBindTexture(GL_TEXTURE_2D, m_glTextTextureId);
@@ -1355,7 +1286,7 @@ bool OverlayManager::CreateTargetTexture()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_textTextureWidth, m_textTextureHeight,
-        0, GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
 
     // Setup video texture
     glBindTexture(GL_TEXTURE_2D, m_glVideoTextureId);
@@ -1364,22 +1295,21 @@ bool OverlayManager::CreateTargetTexture()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_videoTextureWidth, m_videoTextureHeight,
-        0, GL_RGBA, GL_UNSIGNED_BYTE, m_videoTextureData);
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, m_videoTextureData);
 
     // Check for OpenGL errors
     GLenum glError = glGetError();
-    if (glError != GL_NO_ERROR)
-    {
+    if (glError != GL_NO_ERROR) {
         printf("DEBUG: OpenGL error %d when creating textures in stage %d\n",
-            glError, RoutineController::m_routineStage);
+               glError, RoutineController::m_routineStage);
         printf("DEBUG: Texture dimensions: Target=%dx%d, Border=%dx%d, Text=%dx%d\n",
-            m_nTextureWidth, m_nTextureHeight,
-            m_borderTextureWidth, m_borderTextureHeight,
-            m_textTextureWidth, m_textTextureHeight);
+               m_nTextureWidth, m_nTextureHeight,
+               m_borderTextureWidth, m_borderTextureHeight,
+               m_textTextureWidth, m_textTextureHeight);
         printf("DEBUG: Texture IDs: Target=%u, Border=%u, Text=%u\n",
-            m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
+               m_glTextureId, m_glBorderTextureId, m_glTextTextureId);
         printf("DEBUG: Memory pointers: Target=%p, Border=%p, Text=%p\n",
-            (void*)m_pTextureData, (void*)m_borderTextureData, (void*)m_textTextureData);
+               (void*)m_pTextureData, (void*)m_borderTextureData, (void*)m_textTextureData);
 
         // Test each texture binding/creation separately to isolate which one fails
         printf("DEBUG: Testing textures individually to isolate the problem:\n");
@@ -1387,19 +1317,19 @@ bool OverlayManager::CreateTargetTexture()
         // Test target texture
         glBindTexture(GL_TEXTURE_2D, m_glTextureId);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_nTextureWidth, m_nTextureHeight,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, m_pTextureData);
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, m_pTextureData);
         printf("DEBUG: Target texture test: %d\n", glGetError());
 
         // Test border texture
         glBindTexture(GL_TEXTURE_2D, m_glBorderTextureId);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_borderTextureWidth, m_borderTextureHeight,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, m_borderTextureData);
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, m_borderTextureData);
         printf("DEBUG: Border texture test: %d\n", glGetError());
 
         // Test text texture
         glBindTexture(GL_TEXTURE_2D, m_glTextTextureId);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_textTextureWidth, m_textTextureHeight,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, m_textTextureData);
         printf("DEBUG: Text texture test: %d\n", glGetError());
 
         // Clean up resources
@@ -1431,19 +1361,17 @@ bool OverlayManager::CreateTargetTexture()
     }
 
     printf("Textures created successfully with IDs: Target=%u, Border=%u, Text=%u, Video=%u\n",
-        m_glTextureId, m_glBorderTextureId, m_glTextTextureId, m_glVideoTextureId);
+           m_glTextureId, m_glBorderTextureId, m_glTextTextureId, m_glVideoTextureId);
     return true;
 }
 
-void OverlayManager::UpdateOverlayTexture()
-{
+void OverlayManager::UpdateOverlayTexture() {
     printf("\nOverlayManager::Update()\n");
     // Make sure OpenGL context is current
     wglMakeCurrent(m_hDC, m_hRC);
 
     // Update target texture
-    if (m_glTextureId != 0)
-    {
+    if (m_glTextureId != 0) {
         vr::Texture_t targetTexture = { 0 };
         targetTexture.handle = (void*)(uintptr_t)m_glTextureId;
         targetTexture.eType = vr::TextureType_OpenGL;
@@ -1459,8 +1387,7 @@ void OverlayManager::UpdateOverlayTexture()
     }
 
     // Update border texture
-    if (m_glBorderTextureId != 0)
-    {
+    if (m_glBorderTextureId != 0) {
         vr::Texture_t borderTexture = { 0 };
         borderTexture.handle = (void*)(uintptr_t)m_glBorderTextureId;
         borderTexture.eType = vr::TextureType_OpenGL;
@@ -1473,8 +1400,7 @@ void OverlayManager::UpdateOverlayTexture()
     }
 
     // Update text texture
-    if (m_glTextTextureId != 0)
-    {
+    if (m_glTextTextureId != 0) {
         vr::Texture_t textTexture = { 0 };
         textTexture.handle = (void*)(uintptr_t)m_glTextTextureId;
         textTexture.eType = vr::TextureType_OpenGL;
@@ -1487,8 +1413,7 @@ void OverlayManager::UpdateOverlayTexture()
     }
 
     // Update video texture if we have a current frame
-    if (m_glVideoTextureId != 0 && g_CurrentFrame && g_VideoEnabled)
-    {
+    if (m_glVideoTextureId != 0 && g_CurrentFrame && g_VideoEnabled) {
         vr::Texture_t videoTexture = { 0 };
         videoTexture.handle = (void*)(uintptr_t)m_glVideoTextureId;
         videoTexture.eType = vr::TextureType_OpenGL;
@@ -1501,26 +1426,22 @@ void OverlayManager::UpdateOverlayTexture()
     }
 }
 
-vr::HmdMatrix34_t OverlayManager::GetHmdPose() const
-{
+vr::HmdMatrix34_t OverlayManager::GetHmdPose() const {
     vr::TrackedDevicePose_t trackedDevicePoses[vr::k_unMaxTrackedDeviceCount];
     vr::VRSystem()->GetDeviceToAbsoluteTrackingPose(vr::TrackingUniverseStanding, 0, trackedDevicePoses, vr::k_unMaxTrackedDeviceCount);
     return trackedDevicePoses[vr::k_unTrackedDeviceIndex_Hmd].mDeviceToAbsoluteTracking;
 }
 
-void OverlayManager::ResetFixedTargetPosition()
-{
+void OverlayManager::ResetFixedTargetPosition() {
     // Simply reset the static initialization flag
     s_positionInitialized = false;
 }
 
-MU_Vector3 OverlayManager::CalculateTargetPosition() const
-{
+MU_Vector3 OverlayManager::CalculateTargetPosition() const {
     // Fixed position in world space based on initial HMD position and target angles
     static MU_Vector3 fixedTargetPosition = { 0.0f, 0.0f, 0.0f };
     // Initialize the fixed position once
-    if (!s_positionInitialized)
-    {
+    if (!s_positionInitialized) {
         // Get the HMD pose
         vr::HmdMatrix34_t hmdPose = GetHmdPose();
         // Convert SteamVR matrix to our matrix format
@@ -1540,8 +1461,7 @@ MU_Vector3 OverlayManager::CalculateTargetPosition() const
     return fixedTargetPosition;
 }
 
-void OverlayManager::SetFixedTargetPosition(float yawAngle, float pitchAngle)
-{
+void OverlayManager::SetFixedTargetPosition(float yawAngle, float pitchAngle) {
     m_targetYawAngle = yawAngle;
     m_targetPitchAngle = pitchAngle;
     m_targetIsPreview = false;
@@ -1552,16 +1472,14 @@ void OverlayManager::SetFixedTargetPosition(float yawAngle, float pitchAngle)
     Update();
 }
 
-void OverlayManager::SetPreviewTargetPosition(float yawAngle, float pitchAngle)
-{
+void OverlayManager::SetPreviewTargetPosition(float yawAngle, float pitchAngle) {
     m_targetYawAngle = yawAngle;
     m_targetPitchAngle = pitchAngle;
     m_targetIsPreview = true;
     Update();
 }
 
-void OverlayManager::EnableFixedPositionMode(bool enable)
-{
+void OverlayManager::EnableFixedPositionMode(bool enable) {
     m_isFixedPositionMode = enable;
     if (enable) {
         // When enabling fixed position mode, store the current world position
@@ -1582,19 +1500,17 @@ void OverlayManager::EnableFixedPositionMode(bool enable)
         m_fixedWorldPosition.z = hmdPosition.z + forward.z * distance;
 
         printf("Fixed position mode enabled. World position: (%.2f, %.2f, %.2f)\n",
-            m_fixedWorldPosition.x, m_fixedWorldPosition.y, m_fixedWorldPosition.z);
+               m_fixedWorldPosition.x, m_fixedWorldPosition.y, m_fixedWorldPosition.z);
         printf("HMD forward direction: (%.2f, %.2f, %.2f)\n",
-            forward.x, forward.y, forward.z);
-    }
-    else {
+               forward.x, forward.y, forward.z);
+    } else {
         printf("Fixed position mode disabled\n");
     }
 }
 
 // Add this method to calculate the current viewing angle
 // In overlay_manager.cpp, implement the enhanced function:
-OverlayManager::ViewingAngles OverlayManager::CalculateCurrentViewingAngle() const
-{
+OverlayManager::ViewingAngles OverlayManager::CalculateCurrentViewingAngle() const {
     ViewingAngles result = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     // Get the HMD pose
@@ -1627,7 +1543,8 @@ OverlayManager::ViewingAngles OverlayManager::CalculateCurrentViewingAngle() con
 
     // Calculate total angle between HMD forward and target direction
     float dotProduct = MU_VectorDot(hmdForward, toTarget);
-    dotProduct = (dotProduct < -1.0f) ? -1.0f : (dotProduct > 1.0f) ? 1.0f : dotProduct;
+    dotProduct = (dotProduct < -1.0f) ? -1.0f : (dotProduct > 1.0f) ? 1.0f
+                                                                    : dotProduct;
     result.total = MU_RadToDeg(static_cast<float>(acos(dotProduct)));
 
     // Calculate yaw component (horizontal angle)
@@ -1639,7 +1556,8 @@ OverlayManager::ViewingAngles OverlayManager::CalculateCurrentViewingAngle() con
     toTargetXZ = MU_VectorNormalize(toTargetXZ);
 
     float dotYaw = MU_VectorDot(hmdForwardXZ, toTargetXZ);
-    dotYaw = (dotYaw < -1.0f) ? -1.0f : (dotYaw > 1.0f) ? 1.0f : dotYaw;
+    dotYaw = (dotYaw < -1.0f) ? -1.0f : (dotYaw > 1.0f) ? 1.0f
+                                                        : dotYaw;
     float yawAngle = MU_RadToDeg(static_cast<float>(acos(dotYaw)));
 
     // Determine left/right direction using cross product
@@ -1670,7 +1588,8 @@ OverlayManager::ViewingAngles OverlayManager::CalculateCurrentViewingAngle() con
 
     // Calculate the angle between the projected target and HMD up
     float dotRoll = MU_VectorDot(projectedTarget, hmdUp);
-    dotRoll = (dotRoll < -1.0f) ? -1.0f : (dotRoll > 1.0f) ? 1.0f : dotRoll;
+    dotRoll = (dotRoll < -1.0f) ? -1.0f : (dotRoll > 1.0f) ? 1.0f
+                                                           : dotRoll;
     float rollAngle = MU_RadToDeg(static_cast<float>(acos(dotRoll)));
 
     // Determine clockwise/counterclockwise using cross product
@@ -1684,18 +1603,15 @@ OverlayManager::ViewingAngles OverlayManager::CalculateCurrentViewingAngle() con
     return result;
 }
 
-float OverlayManager::GetCurrentYawAngle() const
-{
+float OverlayManager::GetCurrentYawAngle() const {
     return m_targetYawAngle;
 }
 
-float OverlayManager::GetCurrentPitchAngle() const
-{
+float OverlayManager::GetCurrentPitchAngle() const {
     return m_targetPitchAngle;
 }
 
-void OverlayManager::ResetTargetPosition()
-{
+void OverlayManager::ResetTargetPosition() {
     m_targetYawAngle = 0.0f;
     m_targetPitchAngle = 0.0f;
 
@@ -1704,66 +1620,49 @@ void OverlayManager::ResetTargetPosition()
     Update();
 }
 
-bool OverlayManager::IsOverlayVisible() const
-{
+bool OverlayManager::IsOverlayVisible() const {
     return m_isVisible;
 }
 
-void OverlayManager::ToggleOverlayVisibility()
-{
+void OverlayManager::ToggleOverlayVisibility() {
     m_isVisible = !m_isVisible;
 
-    if (m_isVisible)
-    {
+    if (m_isVisible) {
         vr::VROverlay()->ShowOverlay(m_ulOverlayHandle);
         vr::VROverlay()->ShowOverlay(m_ulBorderOverlayHandle);
-    }
-    else
-    {
+    } else {
         vr::VROverlay()->HideOverlay(m_ulOverlayHandle);
         vr::VROverlay()->HideOverlay(m_ulBorderOverlayHandle);
     }
 }
 
-void OverlayManager::ShowTargetCrosshair()
-{
-    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid &&
-        m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+void OverlayManager::ShowTargetCrosshair() {
+    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid && m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         vr::VROverlay()->ShowOverlay(m_ulOverlayHandle);
         vr::VROverlay()->ShowOverlay(m_ulBorderOverlayHandle);
     }
 }
 
-void OverlayManager::HideTargetCrosshair()
-{
-    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid &&
-        m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid)
-    {
+void OverlayManager::HideTargetCrosshair() {
+    if (m_ulOverlayHandle != vr::k_ulOverlayHandleInvalid && m_ulBorderOverlayHandle != vr::k_ulOverlayHandleInvalid) {
         vr::VROverlay()->HideOverlay(m_ulOverlayHandle);
         vr::VROverlay()->HideOverlay(m_ulBorderOverlayHandle);
     }
 }
 
-void OverlayManager::SetTargetCrosshairVisibility(bool visible)
-{
-    if (visible)
-    {
+void OverlayManager::SetTargetCrosshairVisibility(bool visible) {
+    if (visible) {
         ShowTargetCrosshair();
-    }
-    else
-    {
+    } else {
         HideTargetCrosshair();
     }
 }
 
-vr::VROverlayHandle_t OverlayManager::GetOverlayHandle() const
-{
+vr::VROverlayHandle_t OverlayManager::GetOverlayHandle() const {
     return m_ulOverlayHandle;
 }
 
-MU_EyeGaze OverlayManager::CalculateEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition) const
-{
+MU_EyeGaze OverlayManager::CalculateEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition) const {
     // Get current HMD pose
     vr::HmdMatrix34_t hmdPose = GetHmdPose();
     MU_Matrix4 hmdMatrix = MU_ConvertSteamVRMatrixToMatrix4(hmdPose);
@@ -1773,8 +1672,7 @@ MU_EyeGaze OverlayManager::CalculateEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3
     return MU_CalculateEyeGaze(hmdPosition, hmdMatrix, leftEyeOffset, rightEyeOffset, targetPosition);
 }
 
-MU_UnifiedGaze OverlayManager::CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition) const
-{
+MU_UnifiedGaze OverlayManager::CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition) const {
     // First calculate individual eye gaze
     MU_EyeGaze eyeGaze = CalculateEyeGaze(leftEyeOffset, rightEyeOffset, targetPosition);
 
@@ -1783,8 +1681,7 @@ MU_UnifiedGaze OverlayManager::CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset,
     return MU_ConvertToUnifiedGaze(eyeGaze, params);
 }
 
-MU_UnifiedGaze OverlayManager::CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition, MU_ConvergenceParams params) const
-{
+MU_UnifiedGaze OverlayManager::CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset, MU_Vector3 rightEyeOffset, MU_Vector3 targetPosition, MU_ConvergenceParams params) const {
     // First calculate individual eye gaze
     MU_EyeGaze eyeGaze = CalculateEyeGaze(leftEyeOffset, rightEyeOffset, targetPosition);
 
@@ -1792,28 +1689,24 @@ MU_UnifiedGaze OverlayManager::CalculateUnifiedEyeGaze(MU_Vector3 leftEyeOffset,
     return MU_ConvertToUnifiedGaze(eyeGaze, params);
 }
 
-MU_Vector3 OverlayManager::GetCurrentTargetPosition() const
-{
+MU_Vector3 OverlayManager::GetCurrentTargetPosition() const {
     if (m_isFixedPositionMode) {
         return m_fixedWorldPosition;
     }
     return CalculateTargetPosition();
 }
 
-void OverlayManager::LoadVideo(const std::string& filepath)
-{
+void OverlayManager::LoadVideo(const std::string& filepath) {
     if (g_VideoPlayer.LoadVideo(filepath)) {
         printf("Video loaded successfully: %s\n", filepath.c_str());
         g_VideoFrameTimer = 0.0f;
         g_CurrentFrame = nullptr;
-    }
-    else {
+    } else {
         printf("Failed to load video: %s\n", filepath.c_str());
     }
 }
 
-void OverlayManager::EnableVideo(bool enable)
-{
+void OverlayManager::EnableVideo(bool enable) {
 
     if (g_VideoEnabled == enable)
         return;
@@ -1829,15 +1722,14 @@ void OverlayManager::EnableVideo(bool enable)
                 wglMakeCurrent(m_hDC, m_hRC);
                 glBindTexture(GL_TEXTURE_2D, m_glVideoTextureId);
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_videoTextureWidth, m_videoTextureHeight,
-                    GL_RGBA, GL_UNSIGNED_BYTE, m_videoTextureData);
+                                GL_RGBA, GL_UNSIGNED_BYTE, m_videoTextureData);
             }
         }
         // Hide video overlay when disabled
         if (m_ulVideoOverlayHandle != vr::k_ulOverlayHandleInvalid) {
             vr::VROverlay()->HideOverlay(m_ulVideoOverlayHandle);
         }
-    }
-    else {
+    } else {
         // Show video overlay when enabled
         if (m_ulVideoOverlayHandle != vr::k_ulOverlayHandleInvalid) {
             vr::VROverlay()->ShowOverlay(m_ulVideoOverlayHandle);
@@ -1845,15 +1737,12 @@ void OverlayManager::EnableVideo(bool enable)
     }
 }
 
-
-
-void OverlayManager::UpdateVideoPlayback()
-{
+void OverlayManager::UpdateVideoPlayback() {
     static int videoUpdateCount = 0;
     if (videoUpdateCount++ % 60 == 0) { // Debug every 60 calls
-        printf("UpdateVideoPlayback() called %d times, enabled=%s, loaded=%s\n",
-            videoUpdateCount, g_VideoEnabled ? "true" : "false",
-            g_VideoPlayer.IsLoaded() ? "true" : "false");
+        // printf("UpdateVideoPlayback() called %d times, enabled=%s, loaded=%s\n",
+        //     videoUpdateCount, g_VideoEnabled ? "true" : "false",
+        //     g_VideoPlayer.IsLoaded() ? "true" : "false");
     }
 
     if (!g_VideoEnabled || !g_VideoPlayer.IsLoaded()) {
@@ -1867,8 +1756,9 @@ void OverlayManager::UpdateVideoPlayback()
     }
 
     uint64_t currentTime_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(
-        std::chrono::high_resolution_clock::now()
-    ).time_since_epoch().count();
+                                  std::chrono::high_resolution_clock::now())
+                                  .time_since_epoch()
+                                  .count();
 
     if (g_LastFrameTime == 0) {
         g_LastFrameTime = currentTime_ns;
@@ -1876,20 +1766,20 @@ void OverlayManager::UpdateVideoPlayback()
 
     uint64_t delta_ns = currentTime_ns - g_LastFrameTime;
 
-    //g_LastFrameTime = currentTime_ns;
+    // g_LastFrameTime = currentTime_ns;
 
     // Update frame timer
-    g_VideoFrameTimer += (float)(static_cast<double>(delta_ns) / 1000000.0);//1.0f / VIDEO_PLAYBACK_RATE;
+    g_VideoFrameTimer += (float)(static_cast<double>(delta_ns) / 1000000.0); // 1.0f / VIDEO_PLAYBACK_RATE;
 
     static int debugCounter = 0;
     if (debugCounter++ % 60 == 0) { // Debug every 60 calls
-        printf("Video timer: %.3f, target: 1.0, rate: %.1f\n", g_VideoFrameTimer, VIDEO_PLAYBACK_RATE);
+        // printf("Video timer: %.3f, target: 1.0, rate: %.1f\n", g_VideoFrameTimer, VIDEO_PLAYBACK_RATE);
     }
 
     // Check if we need to advance to next frame
     if (g_VideoFrameTimer >= (1000.0f / VIDEO_PLAYBACK_RATE)) {
         g_VideoFrameTimer -= (1000.0f / VIDEO_PLAYBACK_RATE);
-        printf("Advancing to next video frame...\n");
+        // printf("Advancing to next video frame...\n");
 
         if (g_VideoPlayer.HasMoreFrames()) {
             g_CurrentFrame = g_VideoPlayer.GetNextFrame();
@@ -1902,7 +1792,7 @@ void OverlayManager::UpdateVideoPlayback()
                 wglMakeCurrent(m_hDC, m_hRC);
                 glBindTexture(GL_TEXTURE_2D, m_glVideoTextureId);
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_videoTextureWidth, m_videoTextureHeight,
-                    GL_RGBA, GL_UNSIGNED_BYTE, m_videoTextureData);
+                                GL_RGBA, GL_UNSIGNED_BYTE, m_videoTextureData);
 
                 // Update VR overlay with new texture
                 vr::Texture_t videoTexture = { 0 };
@@ -1913,26 +1803,24 @@ void OverlayManager::UpdateVideoPlayback()
                 vr::VROverlayError texError = vr::VROverlay()->SetOverlayTexture(m_ulVideoOverlayHandle, &videoTexture);
                 if (texError != vr::VROverlayError_None) {
                     printf("Set video overlay texture error: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(texError));
-                }
-                else {
-                    printf("Video texture updated successfully\n");
+                } else {
+                    // printf("Video texture updated successfully\n");
                 }
 
-                printf("Updated video texture with frame %dx%d\n", g_CurrentFrame->width, g_CurrentFrame->height);
+                // printf("Updated video texture with frame %dx%d\n", g_CurrentFrame->width, g_CurrentFrame->height);
             }
-        }
-        else {
+        } else {
             // Loop video
             g_VideoPlayer.ResetPlayback();
         }
         g_LastFrameTime = std::chrono::time_point_cast<std::chrono::nanoseconds>(
-            std::chrono::high_resolution_clock::now()
-        ).time_since_epoch().count();
+                              std::chrono::high_resolution_clock::now())
+                              .time_since_epoch()
+                              .count();
     }
 }
 
-void OverlayManager::CopyFrameToTexture(const FrameData& frame)
-{
+void OverlayManager::CopyFrameToTexture(const FrameData& frame) {
     if (!m_videoTextureData || !frame.pixels) {
         return;
     }
@@ -1963,14 +1851,13 @@ void OverlayManager::CopyFrameToTexture(const FrameData& frame)
                 m_videoTextureData[dstIndex + 0] = frame.pixels[srcIndex + 0]; // R
                 m_videoTextureData[dstIndex + 1] = frame.pixels[srcIndex + 1]; // G
                 m_videoTextureData[dstIndex + 2] = frame.pixels[srcIndex + 2]; // B
-                m_videoTextureData[dstIndex + 3] = 255; // A
+                m_videoTextureData[dstIndex + 3] = 255;                        // A
             }
         }
     }
 }
 
-bool OverlayManager::ShouldShowVideoForStage(int stage)
-{
+bool OverlayManager::ShouldShowVideoForStage(int stage) {
     // Define which onboarding stages should show video
     // Adjust these stage numbers based on your onboarding flow
     bool shouldShow;
@@ -1985,6 +1872,6 @@ bool OverlayManager::ShouldShowVideoForStage(int stage)
         break;
     }
 
-    printf("ShouldShowVideoForStage(%d): %s\n", stage, shouldShow ? "true" : "false");
+    // printf("ShouldShowVideoForStage(%d): %s\n", stage, shouldShow ? "true" : "false");
     return shouldShow;
 }

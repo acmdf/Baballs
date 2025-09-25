@@ -6,19 +6,16 @@
 #endif
 
 /* Angle conversion */
-float MU_DegToRad(float degrees)
-{
+float MU_DegToRad(float degrees) {
     return degrees * 0.01745329251994329576923690768489f; /* PI / 180 */
 }
 
-float MU_RadToDeg(float radians)
-{
+float MU_RadToDeg(float radians) {
     return radians * 57.295779513082320876798154814105f; /* 180 / PI */
 }
 
 /* Vector operations */
-MU_Vector3 MU_VectorAdd(MU_Vector3 a, MU_Vector3 b)
-{
+MU_Vector3 MU_VectorAdd(MU_Vector3 a, MU_Vector3 b) {
     MU_Vector3 result;
     result.x = a.x + b.x;
     result.y = a.y + b.y;
@@ -26,8 +23,7 @@ MU_Vector3 MU_VectorAdd(MU_Vector3 a, MU_Vector3 b)
     return result;
 }
 
-MU_Vector3 MU_VectorSubtract(MU_Vector3 a, MU_Vector3 b)
-{
+MU_Vector3 MU_VectorSubtract(MU_Vector3 a, MU_Vector3 b) {
     MU_Vector3 result;
     result.x = a.x - b.x;
     result.y = a.y - b.y;
@@ -35,8 +31,7 @@ MU_Vector3 MU_VectorSubtract(MU_Vector3 a, MU_Vector3 b)
     return result;
 }
 
-MU_Vector3 MU_VectorMultiply(MU_Vector3 v, float scalar)
-{
+MU_Vector3 MU_VectorMultiply(MU_Vector3 v, float scalar) {
     MU_Vector3 result;
     result.x = v.x * scalar;
     result.y = v.y * scalar;
@@ -44,13 +39,11 @@ MU_Vector3 MU_VectorMultiply(MU_Vector3 v, float scalar)
     return result;
 }
 
-float MU_VectorDot(MU_Vector3 a, MU_Vector3 b)
-{
+float MU_VectorDot(MU_Vector3 a, MU_Vector3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-MU_Vector3 MU_VectorCross(MU_Vector3 a, MU_Vector3 b)
-{
+MU_Vector3 MU_VectorCross(MU_Vector3 a, MU_Vector3 b) {
     MU_Vector3 result;
     result.x = a.y * b.z - a.z * b.y;
     result.y = a.z * b.x - a.x * b.z;
@@ -58,13 +51,11 @@ MU_Vector3 MU_VectorCross(MU_Vector3 a, MU_Vector3 b)
     return result;
 }
 
-float MU_VectorLength(MU_Vector3 v)
-{
+float MU_VectorLength(MU_Vector3 v) {
     return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-MU_Vector3 MU_VectorNormalize(MU_Vector3 v)
-{
+MU_Vector3 MU_VectorNormalize(MU_Vector3 v) {
     float length = MU_VectorLength(v);
     MU_Vector3 result = { 0.0f, 0.0f, 0.0f };
 
@@ -79,8 +70,7 @@ MU_Vector3 MU_VectorNormalize(MU_Vector3 v)
 }
 
 /* Matrix operations */
-MU_Matrix4 MU_MatrixIdentity(void)
-{
+MU_Matrix4 MU_MatrixIdentity(void) {
     MU_Matrix4 result = { 0 };
     result.m[0][0] = 1.0f;
     result.m[1][1] = 1.0f;
@@ -89,8 +79,7 @@ MU_Matrix4 MU_MatrixIdentity(void)
     return result;
 }
 
-MU_Matrix4 MU_MatrixMultiply(MU_Matrix4 a, MU_Matrix4 b)
-{
+MU_Matrix4 MU_MatrixMultiply(MU_Matrix4 a, MU_Matrix4 b) {
     MU_Matrix4 result = { 0 };
     int i, j, k;
 
@@ -105,15 +94,13 @@ MU_Matrix4 MU_MatrixMultiply(MU_Matrix4 a, MU_Matrix4 b)
     return result;
 }
 
-MU_Vector3 MU_MatrixGetPosition(MU_Matrix4 m)
-{
+MU_Vector3 MU_MatrixGetPosition(MU_Matrix4 m) {
     MU_Vector3 result = { m.m[0][3], m.m[1][3], m.m[2][3] };
     return result;
 }
 
 /* SteamVR matrix conversion */
-MU_Matrix4 MU_ConvertSteamVRMatrixToMatrix4(vr::HmdMatrix34_t matPose)
-{
+MU_Matrix4 MU_ConvertSteamVRMatrixToMatrix4(vr::HmdMatrix34_t matPose) {
     MU_Matrix4 result = { 0 };
 
     result.m[0][0] = matPose.m[0][0];
@@ -139,8 +126,7 @@ MU_Matrix4 MU_ConvertSteamVRMatrixToMatrix4(vr::HmdMatrix34_t matPose)
     return result;
 }
 
-vr::HmdMatrix34_t MU_ConvertMatrix4ToSteamVRMatrix(MU_Matrix4 m)
-{
+vr::HmdMatrix34_t MU_ConvertMatrix4ToSteamVRMatrix(MU_Matrix4 m) {
     vr::HmdMatrix34_t result;
 
     result.m[0][0] = m.m[0][0];
@@ -162,8 +148,7 @@ vr::HmdMatrix34_t MU_ConvertMatrix4ToSteamVRMatrix(MU_Matrix4 m)
 }
 
 /* Matrix creation functions */
-MU_Matrix4 MU_CreateRotationX(float angleRad)
-{
+MU_Matrix4 MU_CreateRotationX(float angleRad) {
     MU_Matrix4 result = MU_MatrixIdentity();
 
     float s = std::sin(angleRad);
@@ -177,8 +162,7 @@ MU_Matrix4 MU_CreateRotationX(float angleRad)
     return result;
 }
 
-MU_Matrix4 MU_CreateRotationY(float angleRad)
-{
+MU_Matrix4 MU_CreateRotationY(float angleRad) {
     MU_Matrix4 result = MU_MatrixIdentity();
 
     float s = std::sin(angleRad);
@@ -192,8 +176,7 @@ MU_Matrix4 MU_CreateRotationY(float angleRad)
     return result;
 }
 
-MU_Matrix4 MU_CreateRotationZ(float angleRad)
-{
+MU_Matrix4 MU_CreateRotationZ(float angleRad) {
     MU_Matrix4 result = MU_MatrixIdentity();
 
     float s = std::sin(angleRad);
@@ -207,8 +190,7 @@ MU_Matrix4 MU_CreateRotationZ(float angleRad)
     return result;
 }
 
-MU_Matrix4 MU_CreateTranslation(MU_Vector3 v)
-{
+MU_Matrix4 MU_CreateTranslation(MU_Vector3 v) {
     MU_Matrix4 result = MU_MatrixIdentity();
 
     result.m[0][3] = v.x;
@@ -218,11 +200,10 @@ MU_Matrix4 MU_CreateTranslation(MU_Vector3 v)
     return result;
 }
 
-MU_Matrix4 MU_CreateLookAtMatrix(MU_Vector3 eye, MU_Vector3 target, MU_Vector3 up)
-{
-    MU_Vector3 zAxis = MU_VectorNormalize(MU_VectorSubtract(eye, target));  /* Forward */
-    MU_Vector3 xAxis = MU_VectorNormalize(MU_VectorCross(up, zAxis));       /* Right */
-    MU_Vector3 yAxis = MU_VectorCross(zAxis, xAxis);                        /* Up */
+MU_Matrix4 MU_CreateLookAtMatrix(MU_Vector3 eye, MU_Vector3 target, MU_Vector3 up) {
+    MU_Vector3 zAxis = MU_VectorNormalize(MU_VectorSubtract(eye, target)); /* Forward */
+    MU_Vector3 xAxis = MU_VectorNormalize(MU_VectorCross(up, zAxis));      /* Right */
+    MU_Vector3 yAxis = MU_VectorCross(zAxis, xAxis);                       /* Up */
 
     MU_Matrix4 result = { 0 };
 
@@ -249,8 +230,7 @@ MU_Matrix4 MU_CreateLookAtMatrix(MU_Vector3 eye, MU_Vector3 target, MU_Vector3 u
     return result;
 }
 
-MU_Matrix4 MU_CreateTransformMatrix(MU_Vector3 position, MU_Matrix4 rotation)
-{
+MU_Matrix4 MU_CreateTransformMatrix(MU_Vector3 position, MU_Matrix4 rotation) {
     MU_Matrix4 result = rotation;
 
     result.m[0][3] = position.x;
@@ -261,8 +241,7 @@ MU_Matrix4 MU_CreateTransformMatrix(MU_Vector3 position, MU_Matrix4 rotation)
 }
 
 /* Quaternion operations */
-MU_Quaternion MU_CreateQuaternionFromEuler(float pitch, float yaw, float roll)
-{
+MU_Quaternion MU_CreateQuaternionFromEuler(float pitch, float yaw, float roll) {
     /* Convert to radians */
     float p = pitch * 0.5f;
     float y = yaw * 0.5f;
@@ -284,8 +263,7 @@ MU_Quaternion MU_CreateQuaternionFromEuler(float pitch, float yaw, float roll)
     return q;
 }
 
-MU_Matrix4 MU_CreateMatrixFromQuaternion(MU_Quaternion q)
-{
+MU_Matrix4 MU_CreateMatrixFromQuaternion(MU_Quaternion q) {
     MU_Matrix4 result = MU_MatrixIdentity();
 
     float xx = q.x * q.x;
@@ -316,8 +294,7 @@ MU_Matrix4 MU_CreateMatrixFromQuaternion(MU_Quaternion q)
 }
 
 /* Angle calculations */
-float MU_CalculateYawAngle(MU_Vector3 forward, MU_Vector3 target)
-{
+float MU_CalculateYawAngle(MU_Vector3 forward, MU_Vector3 target) {
     /* Project both vectors onto XZ plane (horizontal plane) */
     MU_Vector3 forwardXZ = { forward.x, 0.0f, forward.z };
     MU_Vector3 targetXZ = { target.x, 0.0f, target.z };
@@ -332,14 +309,15 @@ float MU_CalculateYawAngle(MU_Vector3 forward, MU_Vector3 target)
     float yawAngle = targetAngle - forwardAngle;
 
     /* Normalize to [-π, π] range */
-    while (yawAngle > M_PI) yawAngle -= 2.0f * M_PI;
-    while (yawAngle < -M_PI) yawAngle += 2.0f * M_PI;
+    while (yawAngle > M_PI)
+        yawAngle -= 2.0f * M_PI;
+    while (yawAngle < -M_PI)
+        yawAngle += 2.0f * M_PI;
 
     return MU_RadToDeg(yawAngle);
 }
 
-float MU_CalculatePitchAngle(MU_Vector3 forward, MU_Vector3 target)
-{
+float MU_CalculatePitchAngle(MU_Vector3 forward, MU_Vector3 target) {
     /* Calculate the pitch angle (up/down) */
     MU_Vector3 forwardN = MU_VectorNormalize(forward);
     MU_Vector3 targetN = MU_VectorNormalize(target);
@@ -358,8 +336,7 @@ MU_EyeGaze MU_CalculateEyeGaze(
     MU_Matrix4 hmdRotation,
     MU_Vector3 leftEyeOffset,
     MU_Vector3 rightEyeOffset,
-    MU_Vector3 targetPosition)
-{
+    MU_Vector3 targetPosition) {
     MU_EyeGaze result = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     // Transform eye offsets from HMD local space to world space
@@ -382,28 +359,28 @@ MU_EyeGaze MU_CalculateEyeGaze(
     MU_Vector3 rightEyeToTarget = MU_VectorSubtract(targetPosition, rightEyeWorld);
 
     // DEBUG: Print raw values
-    printf("DEBUG: HMD pos (%.3f, %.3f, %.3f)\n", hmdPosition.x, hmdPosition.y, hmdPosition.z);
-    printf("DEBUG: Target pos (%.3f, %.3f, %.3f)\n", targetPosition.x, targetPosition.y, targetPosition.z);
-    printf("DEBUG: LeftEye world (%.3f, %.3f, %.3f)\n", leftEyeWorld.x, leftEyeWorld.y, leftEyeWorld.z);
-    printf("DEBUG: LeftEye->Target raw (%.3f, %.3f, %.3f)\n", leftEyeToTarget.x, leftEyeToTarget.y, leftEyeToTarget.z);
+    // printf("DEBUG: HMD pos (%.3f, %.3f, %.3f)\n", hmdPosition.x, hmdPosition.y, hmdPosition.z);
+    // printf("DEBUG: Target pos (%.3f, %.3f, %.3f)\n", targetPosition.x, targetPosition.y, targetPosition.z);
+    // printf("DEBUG: LeftEye world (%.3f, %.3f, %.3f)\n", leftEyeWorld.x, leftEyeWorld.y, leftEyeWorld.z);
+    // printf("DEBUG: LeftEye->Target raw (%.3f, %.3f, %.3f)\n", leftEyeToTarget.x, leftEyeToTarget.y, leftEyeToTarget.z);
 
     // Normalize the direction vectors
     leftEyeToTarget = MU_VectorNormalize(leftEyeToTarget);
     rightEyeToTarget = MU_VectorNormalize(rightEyeToTarget);
 
-    printf("DEBUG: LeftEye->Target norm (%.3f, %.3f, %.3f)\n", leftEyeToTarget.x, leftEyeToTarget.y, leftEyeToTarget.z);
+    // printf("DEBUG: LeftEye->Target norm (%.3f, %.3f, %.3f)\n", leftEyeToTarget.x, leftEyeToTarget.y, leftEyeToTarget.z);
 
     // Calculate HMD forward direction (negative Z in HMD local space)
     MU_Vector3 hmdForward = { -hmdRotation.m[0][2], -hmdRotation.m[1][2], -hmdRotation.m[2][2] };
     hmdForward = MU_VectorNormalize(hmdForward);
 
-    printf("DEBUG: HMD forward (%.3f, %.3f, %.3f)\n", hmdForward.x, hmdForward.y, hmdForward.z);
+    // printf("DEBUG: HMD forward (%.3f, %.3f, %.3f)\n", hmdForward.x, hmdForward.y, hmdForward.z);
 
-    // Calculate gaze angles for left eye
+    // Calculate gaze angles for left eyeA
     // Yaw: horizontal angle between HMD forward and eye-to-target direction
     result.leftEyeYaw = MU_CalculateYawAngle(hmdForward, leftEyeToTarget);
 
-    // Pitch: vertical angle between HMD forward and eye-to-target direction  
+    // Pitch: vertical angle between HMD forward and eye-to-target direction
     result.leftEyePitch = MU_CalculatePitchAngle(hmdForward, leftEyeToTarget);
 
     // Calculate gaze angles for right eye
@@ -413,29 +390,27 @@ MU_EyeGaze MU_CalculateEyeGaze(
     // Pitch: vertical angle between HMD forward and eye-to-target direction
     result.rightEyePitch = MU_CalculatePitchAngle(hmdForward, rightEyeToTarget);
 
-    printf("DEBUG: Final angles - Left(%.1f°, %.1f°) Right(%.1f°, %.1f°)\n",
-        result.leftEyeYaw, result.leftEyePitch, result.rightEyeYaw, result.rightEyePitch);
+    // printf("DEBUG: Final angles - Left(%.1f°, %.1f°) Right(%.1f°, %.1f°)\n",
+    // result.leftEyeYaw, result.leftEyePitch, result.rightEyeYaw, result.rightEyePitch);
 
     return result;
 }
 
 /* Helper function to convert pitch/yaw angles to 3D direction vector */
-static MU_Vector3 MU_AnglesToDirection(float pitch, float yaw)
-{
+static MU_Vector3 MU_AnglesToDirection(float pitch, float yaw) {
     float pitchRad = MU_DegToRad(pitch);
     float yawRad = MU_DegToRad(yaw);
 
     MU_Vector3 direction;
     direction.x = sin(yawRad) * cos(pitchRad);
     direction.y = sin(pitchRad);
-    direction.z = -cos(yawRad) * cos(pitchRad);  // Negative Z is forward
+    direction.z = -cos(yawRad) * cos(pitchRad); // Negative Z is forward
 
     return MU_VectorNormalize(direction);
 }
 
 /* Helper function to convert 3D direction vector to pitch/yaw angles */
-static void MU_DirectionToAngles(MU_Vector3 direction, float* pitch, float* yaw)
-{
+static void MU_DirectionToAngles(MU_Vector3 direction, float* pitch, float* yaw) {
     MU_Vector3 dir = MU_VectorNormalize(direction);
 
     *pitch = MU_RadToDeg(asin(dir.y));
@@ -443,19 +418,17 @@ static void MU_DirectionToAngles(MU_Vector3 direction, float* pitch, float* yaw)
 }
 
 /* Create default convergence parameters */
-MU_ConvergenceParams MU_CreateDefaultConvergenceParams(void)
-{
+MU_ConvergenceParams MU_CreateDefaultConvergenceParams(void) {
     MU_ConvergenceParams params;
-    params.maxConvergenceAngle = 45.0f;     // Maximum convergence angle in degrees (fully cross-eyed)
-    params.minConvergenceDistance = 0.02f;  // 2cm minimum focus distance (nose touching)
-    params.maxConvergenceDistance = 10.0f;  // 10m maximum focus distance (beyond this is essentially parallel)
-    params.ipdMeters = 0.064f;              // Average IPD of 64mm
+    params.maxConvergenceAngle = 45.0f;    // Maximum convergence angle in degrees (fully cross-eyed)
+    params.minConvergenceDistance = 0.02f; // 2cm minimum focus distance (nose touching)
+    params.maxConvergenceDistance = 10.0f; // 10m maximum focus distance (beyond this is essentially parallel)
+    params.ipdMeters = 0.064f;             // Average IPD of 64mm
     return params;
 }
 
 /* Convert individual eye gaze to unified pitch/yaw/convergence representation */
-MU_UnifiedGaze MU_ConvertToUnifiedGaze(MU_EyeGaze eyeGaze, MU_ConvergenceParams params)
-{
+MU_UnifiedGaze MU_ConvertToUnifiedGaze(MU_EyeGaze eyeGaze, MU_ConvergenceParams params) {
     MU_UnifiedGaze result;
 
     // Convert pitch/yaw angles to 3D direction vectors for each eye
@@ -476,11 +449,13 @@ MU_UnifiedGaze MU_ConvertToUnifiedGaze(MU_EyeGaze eyeGaze, MU_ConvergenceParams 
     // Calculate true 3D convergence angle between the two gaze vectors
     float dotProduct = MU_VectorDot(leftGazeDir, rightGazeDir);
     // Clamp to prevent numerical errors with acos
-    dotProduct = (dotProduct < -1.0f) ? -1.0f : (dotProduct > 1.0f) ? 1.0f : dotProduct;
+    dotProduct = (dotProduct < -1.0f) ? -1.0f : (dotProduct > 1.0f) ? 1.0f
+                                                                    : dotProduct;
     float convergenceAngle = MU_RadToDeg(acos(dotProduct));
 
     // Clamp convergence angle to our expected range
-    if (convergenceAngle > params.maxConvergenceAngle) convergenceAngle = params.maxConvergenceAngle;
+    if (convergenceAngle > params.maxConvergenceAngle)
+        convergenceAngle = params.maxConvergenceAngle;
 
     // Convert to normalized convergence value (0.0 to 1.0)
     result.convergence = convergenceAngle / params.maxConvergenceAngle;
@@ -489,8 +464,7 @@ MU_UnifiedGaze MU_ConvertToUnifiedGaze(MU_EyeGaze eyeGaze, MU_ConvergenceParams 
 }
 
 /* Convert unified gaze back to individual eye gaze (inverse function) */
-MU_EyeGaze MU_ConvertFromUnifiedGaze(MU_UnifiedGaze unifiedGaze, MU_ConvergenceParams params)
-{
+MU_EyeGaze MU_ConvertFromUnifiedGaze(MU_UnifiedGaze unifiedGaze, MU_ConvergenceParams params) {
     MU_EyeGaze result;
 
     // Convert unified pitch/yaw to central gaze direction
@@ -514,7 +488,7 @@ MU_EyeGaze MU_ConvertFromUnifiedGaze(MU_UnifiedGaze unifiedGaze, MU_ConvergenceP
     float halfConvergenceRad = MU_DegToRad(halfConvergenceAngle);
 
     // For left eye: rotate inward (toward center)
-    // For right eye: rotate inward (toward center) 
+    // For right eye: rotate inward (toward center)
     // The rotation direction depends on the cross product result
 
     // Calculate the angle each eye needs to rotate inward
@@ -523,8 +497,8 @@ MU_EyeGaze MU_ConvertFromUnifiedGaze(MU_UnifiedGaze unifiedGaze, MU_ConvergenceP
 
     // Rotate central direction by +/- eye rotation angle around the vertical axis
     float centralYaw = unifiedGaze.yaw;
-    float leftEyeYaw = centralYaw + eyeRotationAngle;   // Left eye looks more right
-    float rightEyeYaw = centralYaw - eyeRotationAngle;  // Right eye looks more left
+    float leftEyeYaw = centralYaw + eyeRotationAngle;  // Left eye looks more right
+    float rightEyeYaw = centralYaw - eyeRotationAngle; // Right eye looks more left
 
     // Pitch remains the same for both eyes (no vertical disparity)
     result.leftEyePitch = unifiedGaze.pitch;

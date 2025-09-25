@@ -18,16 +18,16 @@
 #define TARGET_COLOR_B 0.5411764705882353f
 
 // Target color (ARGB format)
-#define TARGET_COLOR 0xFF539E8A        // Babble Sea Green
-#define BORDER_COLOR 0x00000000        // invisible
+#define TARGET_COLOR 0xFF539E8A // Babble Sea Green
+#define BORDER_COLOR 0x00000000 // invisible
 
 // Target line thickness in pixels
 #define TARGET_LINE_THICKNESS 16
 
 #define BORDER_LINE_THICKNESS 4
-#define BORDER_SIZE_RATIO 48.0f         // Border is 10% larger than the target
-#define BORDER_OPACITY 0.8f            // Slightly more transparent than the target
+#define BORDER_SIZE_RATIO     48.0f // Border is 10% larger than the target
+#define BORDER_OPACITY        0.8f  // Slightly more transparent than the target
 
-#define FLOAT_TO_INT_CONSTANT 3355443  // floor(int32(Signed).max_value / 640)
+#define FLOAT_TO_INT_CONSTANT 3355443 // floor(int32(Signed).max_value / 640)
 
-#define M_PI 3.14159f
+#define M_PI                  3.14159f

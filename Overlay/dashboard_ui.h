@@ -1,12 +1,12 @@
 #pragma once
 #include "stb_truetype.h"
+#include <GL/gl.h>
+#include <Windows.h>
+#include <functional>
 #include <openvr.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <functional>
-#include <Windows.h>
-#include <GL/gl.h>
 
 // Simple button class for dashboard UI
 struct DashboardButton {
@@ -17,7 +17,14 @@ struct DashboardButton {
     std::function<void()> callback;
 
     DashboardButton(const std::string& lbl, float posX, float posY, float w, float h, std::function<void()> cb)
-        : label(lbl), x(posX), y(posY), width(w), height(h), isHovered(false), wasPressed(false), callback(cb) {
+        : label(lbl)
+        , x(posX)
+        , y(posY)
+        , width(w)
+        , height(h)
+        , isHovered(false)
+        , wasPressed(false)
+        , callback(cb) {
     }
 };
 
@@ -27,7 +34,9 @@ struct TextDisplay {
     float x, y;
 
     TextDisplay(const std::string& txt, float posX, float posY)
-        : text(txt), x(posX), y(posY) {
+        : text(txt)
+        , x(posX)
+        , y(posY) {
     }
 };
 

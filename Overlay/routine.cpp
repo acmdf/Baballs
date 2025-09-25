@@ -1,15 +1,14 @@
 #include "routine.h"
 #include "config.h"
-#include "routines.h" // Your header with the calibration routines
 #include "flags.h"
 #include "overlay_manager.h"
-#include <sstream>
-#include <cmath>
+#include "routines.h" // Your header with the calibration routines
 #include <algorithm>
-#include <regex>
+#include <cmath>
 #include <iostream>
 #include <random>
-
+#include <regex>
+#include <sstream>
 
 #include <stdio.h>
 
@@ -38,15 +37,15 @@ void beep(int frequency, int duration) {
 #endif
 
 // Constants for angle conversion
-constexpr float MAX_YAW_ANGLE = 45.0f;    // Maximum yaw angle in degrees
-constexpr float MAX_PITCH_ANGLE = 30.0f;  // Maximum pitch angle in degrees
+constexpr float MAX_YAW_ANGLE = 45.0f;   // Maximum yaw angle in degrees
+constexpr float MAX_PITCH_ANGLE = 30.0f; // Maximum pitch angle in degrees
 
-#define TIME_BETWEEN_ROUTINES 60
-#define STAGE_NOTIFICATION_DURATION 20.0f  // 20 seconds for countdown stages
-#define STAGE_ACTION_DURATION 5.0f        // 5 seconds for action stages  
-#define CONVERGENCE_TEST_DURATION 20.0f   // 20 seconds for convergence test
-#define DILATION_ACTION_DURATION 10.0f    // 10 seconds for black/white screens
-#define DILATION_GRADIENT_DURATION 30.0f  // 30 seconds for white-to-black fade
+#define TIME_BETWEEN_ROUTINES       60
+#define STAGE_NOTIFICATION_DURATION 20.0f // 20 seconds for countdown stages
+#define STAGE_ACTION_DURATION       5.0f  // 5 seconds for action stages
+#define CONVERGENCE_TEST_DURATION   20.0f // 20 seconds for convergence test
+#define DILATION_ACTION_DURATION    10.0f // 10 seconds for black/white screens
+#define DILATION_GRADIENT_DURATION  30.0f // 30 seconds for white-to-black fade
 
 bool RoutineController::m_stepWritten = false;
 double_t RoutineController::m_globalAdvancedTime = 0.0;
@@ -59,8 +58,7 @@ RoutineController::RoutineController(float maxMoveSpeed)
     , m_routineStarted(false)
     , m_maxMoveSpeed(maxMoveSpeed)
     , m_elapsedTime(0.0)
-    , m_lastRandomPointTime(0.0)
-{
+    , m_lastRandomPointTime(0.0) {
     // Initialize positions
     TargetPosition current;
     TargetPosition target;
@@ -79,75 +77,73 @@ float getRandomFloat() {
 
 /**
  * Gets the current state flags for this routine
- * 
+ *
  * @return An integer with flags representing the current routine state
  */
-uint32_t RoutineController::getStateFlags() const 
-{
+uint32_t RoutineController::getStateFlags() const {
     // Hard-coded approach to ensure correct flag generation
     uint32_t flags = 0;
-    
+
     if (m_loadedRoutineIndex >= 0 && m_loadedRoutineIndex < 24) {
         flags |= (1U << (m_loadedRoutineIndex - 1));
     }
-    
+
     // Determine current state directly
     if (!m_operations.empty() && m_currentOpIndex < m_operations.size()) {
         const Operation& op = m_operations[m_currentOpIndex];
-        
+
         if (op.type == OperationType::REST) {
             flags = flags | FLAG_RESTING; // Explicit OR operation
-        }else if (op.type == OperationType::SMOOTH || op.type == OperationType::SMOOTH_CIRCLE) {
+        } else if (op.type == OperationType::SMOOTH || op.type == OperationType::SMOOTH_CIRCLE) {
             flags = flags | FLAG_IN_MOVEMENT; // Explicit OR operation
-        }else if(op.type == OperationType::MOVE_AWAY_TOWARD){
+        } else if (op.type == OperationType::MOVE_AWAY_TOWARD) {
             flags = flags | FLAG_CONVERGENCE;
         }
     }
-    
+
     return flags;
 }
 
-int RoutineController::getTimeTillNext(){
+int RoutineController::getTimeTillNext() {
     // For stages 0-2, use the original logic
-    if(m_routineStage <= 2) {
+    if (m_routineStage <= 2) {
         return TIME_BETWEEN_ROUTINES - (int)(m_globalAdvancedTime);
     }
-    
+
     // For stages 3+, calculate time remaining in current stage
     double_t stageElapsed = m_globalAdvancedTime - m_stageStartTime;
     float stageDuration = STAGE_NOTIFICATION_DURATION; // Default for notification stages
-    
+
     // Action stages have different duration
-    if(m_routineStage % 2 == 0 && m_routineStage >= 4) {
-        if(m_routineStage == CONVERGENCE_STAGE) {
+    if (m_routineStage % 2 == 0 && m_routineStage >= 4) {
+        if (m_routineStage == CONVERGENCE_STAGE) {
             stageDuration = CONVERGENCE_TEST_DURATION;
-        } else if(m_routineStage == DILATION_BLACK_STAGE || m_routineStage == DILATION_WHITE_STAGE) {
+        } else if (m_routineStage == DILATION_BLACK_STAGE || m_routineStage == DILATION_WHITE_STAGE) {
             stageDuration = DILATION_ACTION_DURATION;
-        } else if(m_routineStage == DILATION_GRADIENT_STAGE) {
+        } else if (m_routineStage == DILATION_GRADIENT_STAGE) {
             stageDuration = DILATION_GRADIENT_DURATION;
         } else {
             stageDuration = STAGE_ACTION_DURATION;
         }
     }
 
-    if(m_routineStage == FIXED_POSITION_STAGE)
-        stageDuration = 180; // 3 minutes
-    
+    if (m_routineStage == FIXED_POSITION_STAGE)
+        stageDuration = 120; // 2 minutes
+
     int timeLeft = (int)(stageDuration - stageElapsed);
     return timeLeft > 0 ? timeLeft : 0;
 }
 
-bool RoutineController::parseRoutine(const std::string& routineStr)
-{
+bool RoutineController::parseRoutine(const std::string& routineStr) {
     // Clear any existing operations
     m_operations.clear();
     m_currentOpIndex = 0;
     m_routineStarted = false;
-    
+
     // Split the routine string by semicolons
     std::istringstream stream(routineStr);
     std::string opStr;
-    
+
     while (std::getline(stream, opStr, ';')) {
         if (!opStr.empty()) {
             if (!parseOperation(opStr)) {
@@ -157,7 +153,7 @@ bool RoutineController::parseRoutine(const std::string& routineStr)
             }
         }
     }
-    
+
     return !m_operations.empty();
 }
 
@@ -166,34 +162,33 @@ bool RoutineController::loadRoutine(int routineIndex) {
     printf("Loading routine %i\n", routineIndex);
     // Array of routine strings
     const char* routines[] = ALL_ROUTINES;
-    
+
     // Check if index is valid
     if (routineIndex < 0 || routineIndex >= NUM_CALIBRATION_ROUTINES) {
         std::cerr << "Invalid routine index: " << routineIndex << std::endl;
         return false;
     }
-    
+
     // Store the loaded routine index
     m_loadedRoutineIndex = routineIndex;
-    
+
     // Parse the selected routine
     return parseRoutine(routines[routineIndex]);
 }
 
-bool RoutineController::parseOperation(const std::string& opStr)
-{
+bool RoutineController::parseOperation(const std::string& opStr) {
     Operation op;
     op.elapsedTime = 0.0f;
-    
+
     // Regular expressions for different operation types
     static const std::regex moveRegex(R"(move\s*\(\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*\))");
     static const std::regex restRegex(R"(rest\s*\(\s*([0-9]+\.[0-9]+)\s*\))");
     static const std::regex smoothRegex(R"(smooth\s*\(\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*\))");
     static const std::regex circleRegex(R"(smoothCircle\s*\(\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-1])\s*\))");
     static const std::regex depthRegex(R"(moveDepth\s*\(\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*,\s*([0-9]+\.[0-9]+)\s*\))");
-    
+
     std::smatch matches;
-    
+
     // Try to match move operation
     if (std::regex_search(opStr, matches, moveRegex) && matches.size() == 3) {
         op.type = OperationType::MOVE;
@@ -236,43 +231,41 @@ bool RoutineController::parseOperation(const std::string& opStr)
         op.params.depth.endDistance = std::stof(matches[4].str());
         op.params.depth.seconds = std::stof(matches[5].str());
         op.duration = op.params.depth.seconds;
-    }
-    else {
+    } else {
         return false; // No match found
     }
-    
+
     m_operations.push_back(op);
     return true;
 }
 
-TargetPosition RoutineController::step()
-{
+TargetPosition RoutineController::step() {
     // Initialize timing if this is the first call
     if (!m_routineStarted) {
         m_lastUpdateTime = std::chrono::high_resolution_clock::now();
         m_routineStarted = true;
     }
-    
+
     // Calculate elapsed time since last update
     auto currentTime = std::chrono::high_resolution_clock::now();
     float deltaTime = std::chrono::duration<float>(currentTime - m_lastUpdateTime).count();
     m_lastUpdateTime = currentTime;
 
-    m_elapsedTime += (double_t) deltaTime;
+    m_elapsedTime += (double_t)deltaTime;
     RoutineController::m_globalAdvancedTime = m_elapsedTime;
-    
+
     // If we have operations to process
     if (!m_operations.empty() && m_currentOpIndex < m_operations.size()) {
         Operation& currentOp = m_operations[m_currentOpIndex];
-        
+
         // Update elapsed time for current operation
         currentOp.elapsedTime += deltaTime;
-        
+
         // Check if we need to move to the next operation
         if (currentOp.elapsedTime >= currentOp.duration) {
             // Move to next operation
             m_currentOpIndex++;
-            
+
             // If we have more operations, initialize the next one
             if (m_currentOpIndex < m_operations.size()) {
                 currentOp = m_operations[m_currentOpIndex];
@@ -280,15 +273,14 @@ TargetPosition RoutineController::step()
             }
         }
     }
-    
+
     // Calculate current position based on active operation
     return calculatePosition();
 }
 
-TargetPosition RoutineController::calculatePosition()
-{
+TargetPosition RoutineController::calculatePosition() {
     // Don't progress stages if routine is already complete
-    if(isComplete()) {
+    if (isComplete()) {
         // Return a static position when complete
         m_currentPosition.pitch = 0.0f;
         m_currentPosition.yaw = 0.0f;
@@ -296,27 +288,27 @@ TargetPosition RoutineController::calculatePosition()
         m_currentPosition.state = FLAG_ROUTINE_COMPLETE;
         return m_currentPosition;
     }
-    
+
     // Handle stage progression for stages 3 and above, but not if already complete
-    if(RoutineController::m_routineStage >= 3 && RoutineController::m_routineStage <= MAX_ROUTINE_STAGE){
+    if (RoutineController::m_routineStage >= 3 && RoutineController::m_routineStage <= MAX_ROUTINE_STAGE) {
         handleStageProgression();
-        
+
         // Handle convergence test stages
-        if(RoutineController::m_routineStage >= CONVERGENCE_NOTIFY_STAGE && RoutineController::m_routineStage <= CONVERGENCE_STAGE){
-            if(RoutineController::m_routineStage == CONVERGENCE_STAGE) {
-                //printf("In convergence stage %d, calling calculateConvergencePosition()\n", CONVERGENCE_STAGE);
+        if (RoutineController::m_routineStage >= CONVERGENCE_NOTIFY_STAGE && RoutineController::m_routineStage <= CONVERGENCE_STAGE) {
+            if (RoutineController::m_routineStage == CONVERGENCE_STAGE) {
+                // printf("In convergence stage %d, calling calculateConvergencePosition()\n", CONVERGENCE_STAGE);
             }
             return calculateConvergencePosition();
         }
-        
+
         // Handle dilation test stages
-        if(RoutineController::m_routineStage >= DILATION_STAGE_START && RoutineController::m_routineStage <= DILATION_STAGE_END){
-            //printf("In dilation stage %d\n", RoutineController::m_routineStage);
+        if (RoutineController::m_routineStage >= DILATION_STAGE_START && RoutineController::m_routineStage <= DILATION_STAGE_END) {
+            // printf("In dilation stage %d\n", RoutineController::m_routineStage);
             return calculateDilationPosition();
         }
-        
+
         // Handle fixed position test stages
-        if(RoutineController::m_routineStage >= FIXED_POSITION_NOTIFY_STAGE && RoutineController::m_routineStage <= FIXED_POSITION_STAGE){
+        if (RoutineController::m_routineStage >= FIXED_POSITION_NOTIFY_STAGE && RoutineController::m_routineStage <= FIXED_POSITION_STAGE) {
             printf("In fixed position stage %d\n", RoutineController::m_routineStage);
             // Keep crosshair at center for both notification and test stages
             m_currentPosition.pitch = 0.0f;
@@ -325,9 +317,9 @@ TargetPosition RoutineController::calculatePosition()
             m_currentPosition.state = FLAG_IN_MOVEMENT;
             return m_currentPosition;
         }
-        
+
         // For other stages before convergence test, keep crosshair at center
-        if(RoutineController::m_routineStage >= 3 && RoutineController::m_routineStage < CONVERGENCE_NOTIFY_STAGE){
+        if (RoutineController::m_routineStage >= 3 && RoutineController::m_routineStage < CONVERGENCE_NOTIFY_STAGE) {
             m_currentPosition.pitch = 0.0f;
             m_currentPosition.yaw = 0.0f;
             m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
@@ -337,33 +329,31 @@ TargetPosition RoutineController::calculatePosition()
     }
 
     // Don't run legacy S-pattern code if routine is complete
-    if(isComplete()) {
+    if (isComplete()) {
         return m_currentPosition; // Position already set in early return above
     }
-    
+
     // Don't run S-pattern code if we've already advanced to later stages
-    if(RoutineController::m_routineStage >= 3) {
+    if (RoutineController::m_routineStage >= 3) {
         return m_currentPosition; // Position already set by earlier stage handlers
     }
-    
+
     // Initial calibration period
-    if(m_elapsedTime <= TIME_BETWEEN_ROUTINES) {
+    if (m_elapsedTime <= TIME_BETWEEN_ROUTINES) {
         m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
         m_currentPosition.pitch = 0.0;
         m_currentPosition.yaw = 0.0;
         m_currentPosition.state = FLAG_IN_MOVEMENT;
         RoutineController::m_routineStage = 0;
         return m_currentPosition;
-    }else if(RoutineController::m_routineStage == 0){
+    } else if (RoutineController::m_routineStage == 0) {
         beep(174, 500);
         RoutineController::m_routineStage = 1;
     }
-    
-    
 
     // STRIPPED S-PATTERN LOGIC - Jump directly to fixed position test
     float scanTime = (float)(m_elapsedTime - TIME_BETWEEN_ROUTINES);
-    
+
     // Show brief crosshair movement for 5 seconds, then jump to fixed position
     /*if(scanTime > 5.0f && RoutineController::m_routineStage < FIXED_POSITION_NOTIFY_STAGE){
         RoutineController::m_routineStage = FIXED_POSITION_NOTIFY_STAGE;
@@ -371,49 +361,47 @@ TargetPosition RoutineController::calculatePosition()
         beep(174, 500);
         printf("Jumping to fixed position test at stage %d\n", FIXED_POSITION_NOTIFY_STAGE);
     }*/
-    
+
     // Keep crosshair centered during the brief demo period
     m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
     m_currentPosition.pitch = 0.0f;
     m_currentPosition.yaw = 0.0f;
-    
+
     m_currentPosition.state = FLAG_IN_MOVEMENT;
-    
+
     return m_currentPosition;
 }
 
-TargetPosition RoutineController::screenToAngles(float x, float y) const
-{
+TargetPosition RoutineController::screenToAngles(float x, float y) const {
     // Convert normalized screen coordinates (0-1) to yaw and pitch angles
     // Center (0.5, 0.5) corresponds to (0, 0) in angles
     TargetPosition pos;
-    
+
     // Map x from 0-1 to -MAX_YAW_ANGLE to +MAX_YAW_ANGLE
     pos.yaw = (x - 0.5f) * 2.0f * MAX_YAW_ANGLE;
-    
+
     // Map y from 0-1 to -MAX_PITCH_ANGLE to +MAX_PITCH_ANGLE
     // Note: y=0 is top of screen, but pitch is positive upward, so we invert
     pos.pitch = (0.5f - y) * 2.0f * MAX_PITCH_ANGLE;
-    
+
     // Set default distance
     pos.distance = TARGET_DEFAULT_DISTANCE;
-    
+
     // Initialize state to 0
     pos.state = 0;
-    
+
     return pos;
 }
 
-void RoutineController::reset()
-{
+void RoutineController::reset() {
     m_currentOpIndex = 0;
     m_routineStarted = false;
-    
+
     // Reset elapsed time for all operations
     for (auto& op : m_operations) {
         op.elapsedTime = 0.0f;
     }
-    
+
     // Reset position to center if we have operations
     if (!m_operations.empty()) {
         // Find the first move operation to set initial position
@@ -426,38 +414,33 @@ void RoutineController::reset()
     }
 }
 
-bool RoutineController::isComplete() const
-{
+bool RoutineController::isComplete() const {
     // Routine is complete when we've finished all stages (beyond MAX_ROUTINE_STAGE)
     return RoutineController::m_routineStage > MAX_ROUTINE_STAGE;
 }
 
-size_t RoutineController::getCurrentOperationIndex() const
-{
+size_t RoutineController::getCurrentOperationIndex() const {
     return m_currentOpIndex;
 }
 
-size_t RoutineController::getTotalOperationCount() const
-{
+size_t RoutineController::getTotalOperationCount() const {
     return m_operations.size();
 }
 
-std::vector<std::string> RoutineController::getRoutineNames()
-{
+std::vector<std::string> RoutineController::getRoutineNames() {
     // Return the predefined routine names
     const char* names[] = ALL_ROUTINE_NAMES;
     return std::vector<std::string>(names, names + NUM_CALIBRATION_ROUTINES);
 }
 
-TargetPosition RoutineController::calculateConvergencePosition()
-{
+TargetPosition RoutineController::calculateConvergencePosition() {
     // Convergence test parameters
     const float minDistance = 0.19f; // Minimum distance (close to face)
-    const float maxDistance = 1.5f; // Maximum distance (far from face)
-    const float cycleTime = 4.0f; // 4 seconds for one complete in-out cycle
-    
+    const float maxDistance = 1.5f;  // Maximum distance (far from face)
+    const float cycleTime = 4.0f;    // 4 seconds for one complete in-out cycle
+
     // Notification stage (handled by main stage progression system)
-    if(RoutineController::m_routineStage == CONVERGENCE_NOTIFY_STAGE) {
+    if (RoutineController::m_routineStage == CONVERGENCE_NOTIFY_STAGE) {
         // Keep crosshair at center, default distance during countdown
         m_currentPosition.pitch = 0.0f;
         m_currentPosition.yaw = 0.0f;
@@ -465,22 +448,22 @@ TargetPosition RoutineController::calculateConvergencePosition()
         m_currentPosition.state = FLAG_IN_MOVEMENT;
         return m_currentPosition;
     }
-    
+
     // Active convergence test
-    if(RoutineController::m_routineStage == CONVERGENCE_STAGE) {
+    if (RoutineController::m_routineStage == CONVERGENCE_STAGE) {
         // Calculate elapsed time in current stage (not total elapsed time)
         float testTime = (float)(m_elapsedTime - RoutineController::m_stageStartTime);
-        printf("Stage %d: testTime=%.2f, stageStartTime=%.2f, totalElapsed=%.2f\n", 
+        printf("Stage %d: testTime=%.2f, stageStartTime=%.2f, totalElapsed=%.2f\n",
                CONVERGENCE_STAGE, testTime, RoutineController::m_stageStartTime, m_elapsedTime);
-        
+
         // Calculate distance using smooth sinusoidal animation
         // This creates a smooth in-out motion that tests convergence
         float cycleProgress = fmod(testTime, cycleTime) / cycleTime; // 0-1 over cycle
-        float distanceValue = sin(cycleProgress * 2.0f * M_PI); // -1 to 1
-        
+        float distanceValue = sin(cycleProgress * 2.0f * M_PI);      // -1 to 1
+
         // Map sine wave to distance range (close when sin is negative, far when positive)
         float distance = minDistance + (maxDistance - minDistance) * (distanceValue + 1.0f) / 2.0f;
-        
+
         // Keep crosshair centered for convergence test
         m_currentPosition.pitch = 0.0f;
         m_currentPosition.yaw = 0.0f;
@@ -488,50 +471,50 @@ TargetPosition RoutineController::calculateConvergencePosition()
         m_currentPosition.state = FLAG_IN_MOVEMENT;
         return m_currentPosition;
     }
-    
+
     // Fallback
     m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
     m_currentPosition.state = FLAG_IN_MOVEMENT;
     return m_currentPosition;
 }
 
-TargetPosition RoutineController::calculateDilationPosition()
-{
+TargetPosition RoutineController::calculateDilationPosition() {
     // Keep crosshair centered during all dilation stages
     m_currentPosition.pitch = 0.0f;
     m_currentPosition.yaw = 0.0f;
     m_currentPosition.distance = TARGET_DEFAULT_DISTANCE;
-    
+
     // Set special state flags to control overlay rendering
-    if(RoutineController::m_routineStage == DILATION_BLACK_STAGE) {
+    if (RoutineController::m_routineStage == DILATION_BLACK_STAGE) {
         // Black screen for full dilation
         m_currentPosition.state = FLAG_DILATION_BLACK;
         printf("Stage %d: Setting FLAG_DILATION_BLACK\n", DILATION_BLACK_STAGE);
-    } else if(RoutineController::m_routineStage == DILATION_WHITE_STAGE) {
+    } else if (RoutineController::m_routineStage == DILATION_WHITE_STAGE) {
         // White screen for full constriction
         m_currentPosition.state = FLAG_DILATION_WHITE;
         printf("Stage %d: Setting FLAG_DILATION_WHITE\n", DILATION_WHITE_STAGE);
-    } else if(RoutineController::m_routineStage == DILATION_GRADIENT_STAGE) {
+    } else if (RoutineController::m_routineStage == DILATION_GRADIENT_STAGE) {
         // Gradient fade from white to black
         float testTime = (float)(m_elapsedTime - RoutineController::m_stageStartTime);
         float fadeProgress = testTime / DILATION_GRADIENT_DURATION; // 0.0 to 1.0
-        fadeProgress = (fadeProgress < 0.0f) ? 0.0f : (fadeProgress > 1.0f) ? 1.0f : fadeProgress; // Clamp to [0,1]
-        
+        fadeProgress = (fadeProgress < 0.0f) ? 0.0f : (fadeProgress > 1.0f) ? 1.0f
+                                                                            : fadeProgress; // Clamp to [0,1]
+
         // Set fade progress in the overlay manager static variable
         OverlayManager::s_routineFadeProgress = fadeProgress; // 0.0 = white, 1.0 = black
         m_currentPosition.state = FLAG_DILATION_GRADIENT;
         printf("Stage %d: Setting FLAG_DILATION_GRADIENT, progress=%.2f\n", DILATION_GRADIENT_STAGE, fadeProgress);
     } else {
         // Notification stages - maintain dilation state for pupil consistency
-        if(RoutineController::m_routineStage == DILATION_NOTIFY_1_STAGE) {
+        if (RoutineController::m_routineStage == DILATION_NOTIFY_1_STAGE) {
             // Before black screen - maintain neutral/previous state
             m_currentPosition.state = FLAG_IN_MOVEMENT;
             printf("Stage %d: Pre-black screen notification\n", DILATION_NOTIFY_1_STAGE);
-        } else if(RoutineController::m_routineStage == DILATION_NOTIFY_2_STAGE) {
+        } else if (RoutineController::m_routineStage == DILATION_NOTIFY_2_STAGE) {
             // After black screen, before white - maintain black to keep pupils dilated
             m_currentPosition.state = FLAG_DILATION_BLACK;
             printf("Stage %d: Maintaining black screen for pupil consistency\n", DILATION_NOTIFY_2_STAGE);
-        } else if(RoutineController::m_routineStage == DILATION_NOTIFY_3_STAGE) {
+        } else if (RoutineController::m_routineStage == DILATION_NOTIFY_3_STAGE) {
             // After white screen, before fade - maintain white to keep pupils constricted
             m_currentPosition.state = FLAG_DILATION_WHITE;
             printf("Stage %d: Maintaining white screen for pupil consistency\n", DILATION_NOTIFY_3_STAGE);
@@ -541,73 +524,72 @@ TargetPosition RoutineController::calculateDilationPosition()
             printf("Stage %d: Default notification stage\n", RoutineController::m_routineStage);
         }
     }
-    
+
     return m_currentPosition;
 }
 
-void RoutineController::handleStageProgression()
-{
+void RoutineController::handleStageProgression() {
     // Don't progress if already complete
-    if(RoutineController::m_routineStage > MAX_ROUTINE_STAGE) {
+    if (RoutineController::m_routineStage > MAX_ROUTINE_STAGE) {
         return;
     }
-    
+
     // Calculate time elapsed in current stage
     double_t stageElapsed = m_elapsedTime - RoutineController::m_stageStartTime;
-    
+
     // Debug output
     static int lastDebugStage = -1;
     if (lastDebugStage != RoutineController::m_routineStage) {
-        printf("Stage %d: elapsed=%.2f, stageStart=%.2f, totalElapsed=%.2f\n", 
+        printf("Stage %d: elapsed=%.2f, stageStart=%.2f, totalElapsed=%.2f\n",
                RoutineController::m_routineStage, stageElapsed, RoutineController::m_stageStartTime, m_elapsedTime);
         lastDebugStage = RoutineController::m_routineStage;
     }
-    
+
     // Determine if current stage should advance
     bool shouldAdvance = false;
     float stageDuration = 0.0f;
-    
+
     // Notification stages (odd numbers 3, 5, 7, 9, 11, 13, CONVERGENCE_NOTIFY_STAGE, DILATION_NOTIFY_*): countdown stages
     // Exclude completion stage from normal progression
-    if(RoutineController::m_routineStage % 2 == 1 && RoutineController::m_routineStage >= 3 && RoutineController::m_routineStage < COMPLETION_STAGE) {
+    if (RoutineController::m_routineStage % 2 == 1 && RoutineController::m_routineStage >= 3 && RoutineController::m_routineStage < COMPLETION_STAGE) {
         stageDuration = STAGE_NOTIFICATION_DURATION;
         shouldAdvance = (stageElapsed >= stageDuration);
     }
-    // Action stages (even numbers 4, 6, 8, 10, 12, 14, CONVERGENCE_STAGE, DILATION_BLACK_STAGE, DILATION_WHITE_STAGE, DILATION_GRADIENT_STAGE): user action stages  
-    else if(RoutineController::m_routineStage % 2 == 0 && RoutineController::m_routineStage >= 4) {
+    // Action stages (even numbers 4, 6, 8, 10, 12, 14, CONVERGENCE_STAGE, DILATION_BLACK_STAGE, DILATION_WHITE_STAGE, DILATION_GRADIENT_STAGE): user action stages
+    else if (RoutineController::m_routineStage % 2 == 0 && RoutineController::m_routineStage >= 4) {
         // Special durations for different test types
-        if(RoutineController::m_routineStage == CONVERGENCE_STAGE) {
+        if (RoutineController::m_routineStage == CONVERGENCE_STAGE) {
             stageDuration = CONVERGENCE_TEST_DURATION;
-            printf("Stage %d (convergence): elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n", 
+            printf("Stage %d (convergence): elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n",
                    CONVERGENCE_STAGE, stageElapsed, stageDuration, (stageElapsed >= stageDuration));
-        } else if(RoutineController::m_routineStage == DILATION_BLACK_STAGE || RoutineController::m_routineStage == DILATION_WHITE_STAGE) {
+        } else if (RoutineController::m_routineStage == DILATION_BLACK_STAGE || RoutineController::m_routineStage == DILATION_WHITE_STAGE) {
             stageDuration = DILATION_ACTION_DURATION; // Black/white screens
-        } else if(RoutineController::m_routineStage == DILATION_GRADIENT_STAGE) {
+        } else if (RoutineController::m_routineStage == DILATION_GRADIENT_STAGE) {
             stageDuration = DILATION_GRADIENT_DURATION; // Gradient fade
-            //printf("STAGE22_DEBUG: elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n", 
-            //       stageElapsed, stageDuration, (stageElapsed >= stageDuration));
-        } else if(RoutineController::m_routineStage == FIXED_POSITION_STAGE) {
-            stageDuration = 180.0f; // 180 seconds for fixed position test
+            // printf("STAGE22_DEBUG: elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n",
+            //        stageElapsed, stageDuration, (stageElapsed >= stageDuration));
+        } else if (RoutineController::m_routineStage == FIXED_POSITION_STAGE) {
+            stageDuration = 120.0f; // 120 seconds for fixed position test
         } else {
             stageDuration = STAGE_ACTION_DURATION;
         }
         shouldAdvance = (stageElapsed >= stageDuration);
     }
-    
-    printf("Stage %d : elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n", 
-                   RoutineController::m_routineStage, stageElapsed, stageDuration, shouldAdvance);
+
+    printf("Stage %d : elapsed=%.2f, duration=%.2f, shouldAdvance=%d\n",
+           RoutineController::m_routineStage, stageElapsed, stageDuration, shouldAdvance);
 
     // Advance to next stage if time is up
-    if(shouldAdvance) {
+    if (shouldAdvance) {
         RoutineController::m_routineStage++;
         RoutineController::m_stageStartTime = m_elapsedTime; // Reset stage timer
-        RoutineController::m_stepWritten = false; // Reset step written flag for new stage
-        
+        RoutineController::m_stepWritten = false;            // Reset step written flag for new stage
+
         printf("Advanced to stage %d at time %.2f\n", RoutineController::m_routineStage, m_elapsedTime);
-        
+
         // End routine after fixed position test
-        if(RoutineController::m_routineStage > MAX_ROUTINE_STAGE) {
-            printf("COMPLETION_DEBUG: Stage %d > MAX_ROUTINE_STAGE(%d), setting to COMPLETION_STAGE(%d)\n", 
+        if (RoutineController::m_routineStage > MAX_ROUTINE_STAGE) {
+            printf("COMPLETION_DEBUG: Stage %d > MAX_ROUTINE_STAGE(%d), setting to COMPLETION_STAGE(%d)\n",
                    RoutineController::m_routineStage, MAX_ROUTINE_STAGE, COMPLETION_STAGE);
             RoutineController::m_routineStage = COMPLETION_STAGE; // Mark as complete
             OverlayManager::s_routineState = FLAG_ROUTINE_COMPLETE;

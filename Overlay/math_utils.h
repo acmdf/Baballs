@@ -63,17 +63,17 @@ float MU_CalculatePitchAngle(struct MU_Vector3 v1, struct MU_Vector3 v2);
 
 /* Eye gaze calculation structure */
 struct MU_EyeGaze {
-    float leftEyePitch;   // Left eye pitch angle in degrees
-    float leftEyeYaw;     // Left eye yaw angle in degrees
-    float rightEyePitch;  // Right eye pitch angle in degrees
-    float rightEyeYaw;    // Right eye yaw angle in degrees
+    float leftEyePitch;  // Left eye pitch angle in degrees
+    float leftEyeYaw;    // Left eye yaw angle in degrees
+    float rightEyePitch; // Right eye pitch angle in degrees
+    float rightEyeYaw;   // Right eye yaw angle in degrees
 };
 
 /* Unified gaze representation structure */
 struct MU_UnifiedGaze {
-    float pitch;          // Average pitch angle in degrees
-    float yaw;            // Average yaw angle in degrees
-    float convergence;    // Convergence value from 0.0 (parallel/divergent) to 1.0 (maximum convergence)
+    float pitch;       // Average pitch angle in degrees
+    float yaw;         // Average yaw angle in degrees
+    float convergence; // Convergence value from 0.0 (parallel/divergent) to 1.0 (maximum convergence)
 };
 
 /* Convergence calculation parameters - adjustable for tuning */
@@ -81,7 +81,7 @@ struct MU_ConvergenceParams {
     float maxConvergenceAngle;    // Maximum expected convergence angle in degrees (default: ~6�)
     float minConvergenceDistance; // Minimum focus distance in meters (default: 0.1m)
     float maxConvergenceDistance; // Maximum focus distance in meters (default: 10.0m)
-    float ipdMeters;             // Interpupillary distance in meters (default: 0.064m)
+    float ipdMeters;              // Interpupillary distance in meters (default: 0.064m)
 };
 
 /* Eye gaze calculation function */
@@ -90,20 +90,17 @@ struct MU_EyeGaze MU_CalculateEyeGaze(
     struct MU_Matrix4 hmdRotation,
     struct MU_Vector3 leftEyeOffset,
     struct MU_Vector3 rightEyeOffset,
-    struct MU_Vector3 targetPosition
-);
+    struct MU_Vector3 targetPosition);
 
 /* Convert individual eye gaze to unified pitch/yaw/convergence representation */
 struct MU_UnifiedGaze MU_ConvertToUnifiedGaze(
     struct MU_EyeGaze eyeGaze,
-    struct MU_ConvergenceParams params
-);
+    struct MU_ConvergenceParams params);
 
 /* Convert unified gaze back to individual eye gaze (inverse function) */
 struct MU_EyeGaze MU_ConvertFromUnifiedGaze(
     struct MU_UnifiedGaze unifiedGaze,
-    struct MU_ConvergenceParams params
-);
+    struct MU_ConvergenceParams params);
 
 /* Create default convergence parameters */
 struct MU_ConvergenceParams MU_CreateDefaultConvergenceParams(void);

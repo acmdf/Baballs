@@ -1,13 +1,13 @@
 #ifndef TRAINER_WRAPPER_H
 #define TRAINER_WRAPPER_H
 
-#include <string>
-#include <functional>
 #include "trainer_progress.h"
+#include <functional>
+#include <string>
 
 /**
  * @brief TrainerWrapper class for managing the training process
- * 
+ *
  * This class provides a simple interface to run the trainer executable
  * with appropriate callbacks for output and completion.
  */
@@ -19,14 +19,14 @@ public:
 
     /**
      * @brief Constructor
-     * 
+     *
      * @param trainerPath Path to the trainer executable (defaults to "trainer.exe")
      */
     explicit TrainerWrapper(const std::string& trainerPath = "venv");
 
     /**
      * @brief Start the training process
-     * 
+     *
      * @param datasetFile Path to the input dataset file
      * @param outputFile Path where the trained model will be saved
      * @param onOutput Callback function that receives output from the trainer
@@ -38,19 +38,18 @@ public:
         const std::string& outputFile,
         OutputCallback onOutput,
         ProgressCallback onProgress,
-        CompletionCallback onCompleted
-    );
+        CompletionCallback onCompleted);
 
     /**
      * @brief Check if the trainer is currently running
-     * 
+     *
      * @return true if the trainer is running, false otherwise
      */
     bool isRunning() const;
 
     /**
      * @brief Get current training progress
-     * 
+     *
      * @return const TrainerProgress& Current progress information
      */
     const TrainerProgress& getProgress() const;

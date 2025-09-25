@@ -2,9 +2,9 @@
 
 #include "dashboard_ui.h"
 
-//#ifndef STB_TRUETYPE_IMPLEMENTATION
-//##define STB_TRUETYPE_IMPLEMENTATION
-//#endif
+// #ifndef STB_TRUETYPE_IMPLEMENTATION
+// ##define STB_TRUETYPE_IMPLEMENTATION
+// #endif
 #include "stb_truetype.h"
 
 #include <GL/gl.h>
@@ -14,28 +14,28 @@
 #include <iostream>
 
 // Dashboard texture size
-#define DASHBOARD_WIDTH 1024
+#define DASHBOARD_WIDTH  1024
 #define DASHBOARD_HEIGHT 512
 
 // Colors
 #define COLOR_FRAME_BACKGROUND 0x2D2D2D
-#define COLOR_BUTTON 0x4D4D4D
-#define COLOR_BUTTON_HOVER 0x6D6D6D
-#define COLOR_TEXT 0xFFFFFF
-#define COLOR_STATUS_TEXT 0xAAAAAA
+#define COLOR_BUTTON           0x4D4D4D
+#define COLOR_BUTTON_HOVER     0x6D6D6D
+#define COLOR_TEXT             0xFFFFFF
+#define COLOR_STATUS_TEXT      0xAAAAAA
 
-DashboardUI::DashboardUI() :
-    m_dashboardHandle(vr::k_ulOverlayHandleInvalid),
-    m_glTextureId(0),
-    m_textureWidth(DASHBOARD_WIDTH),
-    m_textureHeight(DASHBOARD_HEIGHT),
-    m_textureData(nullptr),
-    m_statusDisplay("Ready", 20, DASHBOARD_HEIGHT - 40),
-    m_hWnd(NULL),
-    m_hDC(NULL),
-    m_hRC(NULL),
-    m_fontBuffer(nullptr),
-    m_fontSize(32.0f)  // Default font size
+DashboardUI::DashboardUI()
+    : m_dashboardHandle(vr::k_ulOverlayHandleInvalid)
+    , m_glTextureId(0)
+    , m_textureWidth(DASHBOARD_WIDTH)
+    , m_textureHeight(DASHBOARD_HEIGHT)
+    , m_textureData(nullptr)
+    , m_statusDisplay("Ready", 20, DASHBOARD_HEIGHT - 40)
+    , m_hWnd(NULL)
+    , m_hDC(NULL)
+    , m_hRC(NULL)
+    , m_fontBuffer(nullptr)
+    , m_fontSize(32.0f) // Default font size
 {
     // Initialize font struct to zero
     memset(&m_font, 0, sizeof(m_font));
@@ -44,7 +44,8 @@ DashboardUI::DashboardUI() :
 bool DashboardUI::InitializeFont(const char* fontPath, float fontSize) {
     // Load font file
     FILE* fontFile = fopen(fontPath, "rb");
-    if (!fontFile) return false;
+    if (!fontFile)
+        return false;
 
     fseek(fontFile, 0, SEEK_END);
     long size = ftell(fontFile);
@@ -66,7 +67,8 @@ bool DashboardUI::InitializeFont(const char* fontPath, float fontSize) {
 }
 
 void DashboardUI::RenderText(const std::string& text, int x, int y, uint32_t color) {
-    if (!m_fontBuffer) return;
+    if (!m_fontBuffer)
+        return;
 
     float scale = stbtt_ScaleForPixelHeight(&m_font, m_fontSize);
     int ascent, descent, lineGap;
@@ -88,8 +90,7 @@ void DashboardUI::RenderText(const std::string& text, int x, int y, uint32_t col
 
             glyph = { width, height, xoff, yoff, bitmap };
             m_glyphCache[c] = glyph;
-        }
-        else {
+        } else {
             glyph = it->second;
         }
 
@@ -103,8 +104,7 @@ void DashboardUI::RenderText(const std::string& text, int x, int y, uint32_t col
                 int pixelX = cursorX + i + glyph.xoff;
                 int pixelY = baseline + (glyph.height - 1 - j) + glyph.yoff;
 
-                if (pixelX >= 0 && pixelX < m_textureWidth &&
-                    pixelY >= 0 && pixelY < m_textureHeight) {
+                if (pixelX >= 0 && pixelX < m_textureWidth && pixelY >= 0 && pixelY < m_textureHeight) {
 
                     unsigned char alpha = glyph.bitmap[j * glyph.width + i];
                     if (alpha > 0) {
@@ -112,12 +112,9 @@ void DashboardUI::RenderText(const std::string& text, int x, int y, uint32_t col
 
                         // Apply alpha blending
                         float a = alpha / 255.0f;
-                        m_textureData[index + 0] = (uint8_t)(((color >> 16) & 0xFF) * a +
-                            m_textureData[index + 0] * (1 - a));
-                        m_textureData[index + 1] = (uint8_t)(((color >> 8) & 0xFF) * a +
-                            m_textureData[index + 1] * (1 - a));
-                        m_textureData[index + 2] = (uint8_t)((color & 0xFF) * a +
-                            m_textureData[index + 2] * (1 - a));
+                        m_textureData[index + 0] = (uint8_t)(((color >> 16) & 0xFF) * a + m_textureData[index + 0] * (1 - a));
+                        m_textureData[index + 1] = (uint8_t)(((color >> 8) & 0xFF) * a + m_textureData[index + 1] * (1 - a));
+                        m_textureData[index + 2] = (uint8_t)((color & 0xFF) * a + m_textureData[index + 2] * (1 - a));
                         m_textureData[index + 3] = 255;
                     }
                 }
@@ -136,7 +133,8 @@ void DashboardUI::RenderText(const std::string& text, int x, int y, uint32_t col
 }
 
 int DashboardUI::MeasureTextWidth(const std::string& text) {
-    if (!m_fontBuffer) return (int)(text.length() * 8); // Fallback
+    if (!m_fontBuffer)
+        return (int)(text.length() * 8); // Fallback
 
     float scale = stbtt_ScaleForPixelHeight(&m_font, m_fontSize);
     int width = 0;
@@ -184,7 +182,6 @@ bool DashboardUI::Initialize() {
         // Continue anyway, we'll use fallback rendering
     }
 
-
     vr::VROverlayHandle_t neighborHandle = vr::k_ulOverlayHandleInvalid;
 
     // Create the dashboard overlay
@@ -192,7 +189,7 @@ bool DashboardUI::Initialize() {
         "peripheral_vision_dashboard",
         "Eye Tracking Calibration",
         &m_dashboardHandle,
-        &neighborHandle);  // Change this from &vr::k_ulOverlayHandleInvalid to nullptr
+        &neighborHandle); // Change this from &vr::k_ulOverlayHandleInvalid to nullptr
 
     // Get absolute path to the icon file
     if (GetFullPathNameA("./icon.png", MAX_PATH, iconPath, nullptr) == 0) {
@@ -205,12 +202,12 @@ bool DashboardUI::Initialize() {
     vr::VROverlayError iconError = vr::VROverlay()->SetOverlayFromFile(m_dashboardHandle, iconPath);
     if (iconError != vr::VROverlayError_None) {
         std::cout << "Failed to set overlay thumbnail: "
-            << vr::VROverlay()->GetOverlayErrorNameFromEnum(iconError) << std::endl;
+                  << vr::VROverlay()->GetOverlayErrorNameFromEnum(iconError) << std::endl;
     }
 
     if (overlayError != vr::VROverlayError_None) {
         std::cout << "Failed to create dashboard overlay: "
-            << vr::VROverlay()->GetOverlayErrorNameFromEnum(overlayError) << std::endl;
+                  << vr::VROverlay()->GetOverlayErrorNameFromEnum(overlayError) << std::endl;
         return false;
     }
 
@@ -229,15 +226,15 @@ bool DashboardUI::Initialize() {
     // Add default buttons
     AddButton("Start", 20, 20, 200, 60, []() {
         std::cout << "Start button pressed" << std::endl;
-        });
+    });
 
     AddButton("Reset", 20, 100, 200, 60, []() {
         std::cout << "Reset button pressed" << std::endl;
-        });
+    });
 
     AddButton("Stop", 20, 180, 200, 60, []() {
         std::cout << "Stop button pressed" << std::endl;
-        });
+    });
 
     return true;
 }
@@ -301,14 +298,14 @@ bool DashboardUI::InitializeOpenGL() {
     WNDCLASS wc = { 0 };
     wc.lpfnWndProc = DefWindowProc;
     wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = L"DashboardGLClass";
+    wc.lpszClassName = "DashboardGLClass";
 
     if (!RegisterClass(&wc)) {
         std::cout << "Failed to register window class" << std::endl;
         return false;
     }
 
-    m_hWnd = CreateWindow(L"DashboardGLClass", L"Dashboard GL Window", 0, 0, 0, 1, 1, NULL, NULL, GetModuleHandle(NULL), NULL);
+    m_hWnd = CreateWindow("DashboardGLClass", "Dashboard GL Window", 0, 0, 0, 1, 1, NULL, NULL, GetModuleHandle(NULL), NULL);
     if (!m_hWnd) {
         std::cout << "Failed to create dummy window" << std::endl;
         return false;
@@ -391,7 +388,7 @@ bool DashboardUI::CreateDashboardTexture() {
         m_textureData[index + 0] = (COLOR_FRAME_BACKGROUND >> 16) & 0xFF; // R
         m_textureData[index + 1] = (COLOR_FRAME_BACKGROUND >> 8) & 0xFF;  // G
         m_textureData[index + 2] = COLOR_FRAME_BACKGROUND & 0xFF;         // B
-        m_textureData[index + 3] = 255;                             // A
+        m_textureData[index + 3] = 255;                                   // A
     }
 
     // Generate OpenGL texture
@@ -444,7 +441,7 @@ void DashboardUI::RenderUI() {
         m_textureData[index + 0] = (COLOR_FRAME_BACKGROUND >> 16) & 0xFF; // R
         m_textureData[index + 1] = (COLOR_FRAME_BACKGROUND >> 8) & 0xFF;  // G
         m_textureData[index + 2] = COLOR_FRAME_BACKGROUND & 0xFF;         // B
-        m_textureData[index + 3] = 255;                             // A
+        m_textureData[index + 3] = 255;                                   // A
     }
 
     // Draw each button
@@ -474,8 +471,7 @@ void DashboardUI::RenderUI() {
             button.label,
             (int)(button.x + (button.width - MeasureTextWidth(button.label)) / 2),
             (int)(button.y + (button.height - m_fontSize) / 2),
-            COLOR_TEXT
-        );
+            COLOR_TEXT);
     }
 
     // Draw status text
@@ -487,16 +483,15 @@ void DashboardUI::RenderUI() {
         m_statusDisplay.text,
         statusTextX,
         statusTextY,
-        COLOR_STATUS_TEXT
-    );
+        COLOR_STATUS_TEXT);
 }
 
 void DashboardUI::ProcessDashboardEvents() {
     // Process overlay events
     vr::VREvent_t event;
     while (vr::VROverlay()->PollNextOverlayEvent(m_dashboardHandle, &event, sizeof(event))) {
-        // printf("DashboardEvent: %s (%d)\n", 
-        //        vr::VRSystem()->GetEventTypeNameFromEnum((vr::EVREventType)event.eventType), 
+        // printf("DashboardEvent: %s (%d)\n",
+        //        vr::VRSystem()->GetEventTypeNameFromEnum((vr::EVREventType)event.eventType),
         //        event.eventType); // Commented out to reduce spam
         switch (event.eventType) {
         case vr::VREvent_MouseMove: {
@@ -556,6 +551,5 @@ void DashboardUI::HandleMouseInput(float x, float y, bool mouseDown) {
 }
 
 bool DashboardUI::HitTestButton(const DashboardButton& button, float x, float y) {
-    return (x >= button.x && x <= button.x + button.width &&
-        y >= button.y && y <= button.y + button.height);
+    return (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height);
 }

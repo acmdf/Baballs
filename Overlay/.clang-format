@@ -1,0 +1,10 @@
+---
+BasedOnStyle: WebKit
+AlignAfterOpenBracket: Align
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: true
+AlignOperands: AlignAfterOperator
+AlignTrailingComments:
+  Kind: Always
+BreakBeforeBraces: Attach

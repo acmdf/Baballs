@@ -1,35 +1,37 @@
 #include "rest_server.h"
-#include <iostream>
 #include <cstring>
+#include <iostream>
 #include <sstream>
 
 #ifdef _WIN32
-    #pragma comment(lib, "ws2_32.lib")
-    #define SOCKET_ERROR_VALUE INVALID_SOCKET
-    #define close_socket closesocket
+#pragma comment(lib, "ws2_32.lib")
+#define SOCKET_ERROR_VALUE INVALID_SOCKET
+#define close_socket       closesocket
 #else
-    #include <unistd.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #define SOCKET_ERROR_VALUE (-1)
-    #define close_socket close
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#define SOCKET_ERROR_VALUE (-1)
+#define close_socket       close
 #endif
 
-HTTPServer::HTTPServer(int port) : port_(port), running_(false) {
-    #ifdef _WIN32
-        WSADATA wsaData;
-        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-            throw std::runtime_error("WSAStartup failed");
-        }
-    #endif
+HTTPServer::HTTPServer(int port)
+    : port_(port)
+    , running_(false) {
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        throw std::runtime_error("WSAStartup failed");
+    }
+#endif
 }
 
 HTTPServer::~HTTPServer() {
     stop();
-    #ifdef _WIN32
-        WSACleanup();
-    #endif
+#ifdef _WIN32
+    WSACleanup();
+#endif
 }
 
 void HTTPServer::register_handler(const std::string& path, RequestHandler handler) {
@@ -84,7 +86,8 @@ void HTTPServer::start() {
             socket_t client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &client_len);
 
             if (client_socket == SOCKET_ERROR_VALUE) {
-                if (!running_) break; // Exit cleanly if we're stopping the server
+                if (!running_)
+                    break; // Exit cleanly if we're stopping the server
                 continue;
             }
 
@@ -100,7 +103,7 @@ void HTTPServer::start() {
 void HTTPServer::stop() {
     if (running_) {
         running_ = false;
-        
+
         // Create a connection to ourselves to unblock the accept() call
         socket_t temp_socket = socket(AF_INET, SOCK_STREAM, 0);
         if (temp_socket != SOCKET_ERROR_VALUE) {
@@ -109,11 +112,11 @@ void HTTPServer::stop() {
             addr.sin_family = AF_INET;
             addr.sin_port = htons(port_);
             addr.sin_addr.s_addr = ip_address_to_uint("127.0.0.1");
-            
+
             connect(temp_socket, (struct sockaddr*)&addr, sizeof(addr));
             close_socket(temp_socket);
         }
-        
+
         // Wait for the server thread to finish
         if (server_thread.joinable()) {
             server_thread.join();
@@ -121,15 +124,15 @@ void HTTPServer::stop() {
     }
 }
 
-void HTTPServer::parse_request(const std::string& request, 
-                             std::string& method, 
-                             std::string& path, 
-                             std::unordered_map<std::string, std::string>& headers,
-                             std::unordered_map<std::string, std::string>& params,
-                             std::string& body) {
+void HTTPServer::parse_request(const std::string& request,
+                               std::string& method,
+                               std::string& path,
+                               std::unordered_map<std::string, std::string>& headers,
+                               std::unordered_map<std::string, std::string>& params,
+                               std::string& body) {
     std::istringstream request_stream(request);
     std::string line;
-    
+
     // Parse request line
     std::getline(request_stream, line);
     std::istringstream request_line(line);
@@ -141,7 +144,7 @@ void HTTPServer::parse_request(const std::string& request,
     if (query_pos != std::string::npos) {
         std::string query = path.substr(query_pos + 1);
         path = path.substr(0, query_pos);
-        
+
         std::istringstream query_stream(query);
         std::string param;
         while (std::getline(query_stream, param, '&')) {
@@ -178,7 +181,7 @@ void HTTPServer::parse_request(const std::string& request,
         auto content_length_it = headers.find("Content-Length");
         if (content_length_it != headers.end()) {
             int content_length = std::stoi(content_length_it->second);
-            
+
             // The body starts after the empty line (headers and body separator)
             size_t body_start = request.find("\r\n\r\n");
             if (body_start != std::string::npos) {
@@ -190,9 +193,9 @@ void HTTPServer::parse_request(const std::string& request,
 }
 
 void HTTPServer::handle_connection(socket_t client_socket) {
-    char buffer[8192] = {0}; // Increased buffer size for larger requests
+    char buffer[8192] = { 0 }; // Increased buffer size for larger requests
     int bytes_read = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-    
+
     if (bytes_read <= 0) {
         return;
     }
@@ -202,12 +205,12 @@ void HTTPServer::handle_connection(socket_t client_socket) {
     std::string method, path, body;
     std::unordered_map<std::string, std::string> headers;
     std::unordered_map<std::string, std::string> params;
-    
+
     parse_request(request, method, path, headers, params, body);
 
     // Find and call the appropriate handler
     std::string response_body;
-    
+
     if (method == "GET") {
         auto it = get_handlers_.find(path);
         if (it != get_handlers_.end()) {

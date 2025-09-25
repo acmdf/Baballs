@@ -198,7 +198,7 @@ smooth(0.5,0.5);rest(1.5);"
 // Figure-8 pattern with natural variations
 #define CALIBRATION_ROUTINE_FIGURE_8 "move(0.512,0.487);rest(2.1);smoothCircle(0.367,0.367,0.153,3.7,1);rest(0.5);smoothCircle(0.657,0.607,0.153,3.7,0);rest(0.5);move(0.512,0.487);rest(1.4);"
 
-#define CALIBRATION_ROUTINE_DEPTH "move(0.5,0.5);rest(2.0);\
+#define CALIBRATION_ROUTINE_DEPTH    "move(0.5,0.5);rest(2.0);\
 moveDepth(0.5,0.5,2.0,0.5,3.0);rest(1.5);\
 moveDepth(0.5,0.5,0.5,1.0,2.0);rest(1.5);\
 moveDepth(0.5,0.5,1.0,0.3,2.5);rest(1.5);\
@@ -212,55 +212,55 @@ moveDepth(0.5,0.5,1.0,0.5,2.0);rest(1.5);\
 moveDepth(0.5,0.5,0.5,2.0,3.0);rest(1.5);"
 
 // List of all calibration routines for easy access
-#define ALL_ROUTINES { \
-    CALIBRATION_ROUTINE_BASIC, \
-    CALIBRATION_ROUTINE_EXTENDED, \
-    CALIBRATION_ROUTINE_HORIZONTAL, \
-    CALIBRATION_ROUTINE_VERTICAL, \
-    CALIBRATION_ROUTINE_DIAGONAL_1, \
-    CALIBRATION_ROUTINE_DIAGONAL_2, \
-    CALIBRATION_ROUTINE_CIRCULAR, \
-    CALIBRATION_ROUTINE_SPIRAL, \
-    CALIBRATION_ROUTINE_SACCADES, \
-    CALIBRATION_ROUTINE_SMOOTH_H, \
-    CALIBRATION_ROUTINE_SMOOTH_V, \
-    CALIBRATION_ROUTINE_SMOOTH_CIRCLE, \
-    CALIBRATION_ROUTINE_COMPREHENSIVE, \
-    CALIBRATION_ROUTINE_PERIPHERAL, \
-    CALIBRATION_ROUTINE_QUICK, \
-    CALIBRATION_ROUTINE_CENTRAL, \
-    CALIBRATION_ROUTINE_DYNAMIC, \
+#define ALL_ROUTINES {                  \
+    CALIBRATION_ROUTINE_BASIC,          \
+    CALIBRATION_ROUTINE_EXTENDED,       \
+    CALIBRATION_ROUTINE_HORIZONTAL,     \
+    CALIBRATION_ROUTINE_VERTICAL,       \
+    CALIBRATION_ROUTINE_DIAGONAL_1,     \
+    CALIBRATION_ROUTINE_DIAGONAL_2,     \
+    CALIBRATION_ROUTINE_CIRCULAR,       \
+    CALIBRATION_ROUTINE_SPIRAL,         \
+    CALIBRATION_ROUTINE_SACCADES,       \
+    CALIBRATION_ROUTINE_SMOOTH_H,       \
+    CALIBRATION_ROUTINE_SMOOTH_V,       \
+    CALIBRATION_ROUTINE_SMOOTH_CIRCLE,  \
+    CALIBRATION_ROUTINE_COMPREHENSIVE,  \
+    CALIBRATION_ROUTINE_PERIPHERAL,     \
+    CALIBRATION_ROUTINE_QUICK,          \
+    CALIBRATION_ROUTINE_CENTRAL,        \
+    CALIBRATION_ROUTINE_DYNAMIC,        \
     CALIBRATION_ROUTINE_MICRO_SACCADES, \
-    CALIBRATION_ROUTINE_READING, \
-    CALIBRATION_ROUTINE_Z_PATTERN, \
-    CALIBRATION_ROUTINE_FIGURE_8, \
-    CALIBRATION_ROUTINE_DEPTH \
+    CALIBRATION_ROUTINE_READING,        \
+    CALIBRATION_ROUTINE_Z_PATTERN,      \
+    CALIBRATION_ROUTINE_FIGURE_8,       \
+    CALIBRATION_ROUTINE_DEPTH           \
 }
 
 // Routine names for reference/display
 #define ALL_ROUTINE_NAMES { \
-    "Basic Calibration", \
+    "Basic Calibration",    \
     "Extended Calibration", \
-    "Horizontal Sweep", \
-    "Vertical Sweep", \
-    "Diagonal Pattern 1", \
-    "Diagonal Pattern 2", \
-    "Circular Pattern", \
-    "Spiral Pattern", \
-    "Saccade Movements", \
-    "Smooth Horizontal", \
-    "Smooth Vertical", \
-    "Smooth Circle", \
-    "Comprehensive", \
-    "Peripheral Vision", \
-    "Quick Calibration", \
+    "Horizontal Sweep",     \
+    "Vertical Sweep",       \
+    "Diagonal Pattern 1",   \
+    "Diagonal Pattern 2",   \
+    "Circular Pattern",     \
+    "Spiral Pattern",       \
+    "Saccade Movements",    \
+    "Smooth Horizontal",    \
+    "Smooth Vertical",      \
+    "Smooth Circle",        \
+    "Comprehensive",        \
+    "Peripheral Vision",    \
+    "Quick Calibration",    \
     "Central Fine-Grained", \
-    "Dynamic Range", \
-    "Micro-Saccades", \
-    "Reading Pattern", \
-    "Z-Pattern", \
-    "Figure-8 Pattern", \
-    "Depth Simulation" \
+    "Dynamic Range",        \
+    "Micro-Saccades",       \
+    "Reading Pattern",      \
+    "Z-Pattern",            \
+    "Figure-8 Pattern",     \
+    "Depth Simulation"      \
 }
 
 #define NUM_CALIBRATION_ROUTINES 22

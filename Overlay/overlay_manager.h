@@ -1,17 +1,17 @@
 #pragma once
 #pragma once
 
-#include <openvr.h>
-#include <windows.h>
-#include <gl/GL.h>
-#include <string>
-#include <map>
-#include "math_utils.h"
 #include "config.h"
+#include "math_utils.h"
 #include "routine.h"
 #include "stb_truetype.h"
 #include "trainer_wrapper.h"
 #include "video_player.h"
+#include <gl/GL.h>
+#include <map>
+#include <openvr.h>
+#include <string>
+#include <windows.h>
 // Forward declaration for stb_truetype
 typedef struct stbtt_fontinfo stbtt_fontinfo;
 
@@ -150,7 +150,7 @@ private:
 
     bool m_targetIsPreview;
     bool m_isFixedPositionMode;
-    MU_Vector3 m_fixedWorldPosition;  // Fixed position in world coordinates
+    MU_Vector3 m_fixedWorldPosition; // Fixed position in world coordinates
 
     // Flag to track if the overlay is visible
     bool m_isVisible;
@@ -170,7 +170,7 @@ private:
     void UpdateOverlayTransform(const MU_Vector3& targetPosition);
     MU_Vector3 CalculateTargetPosition() const;
     static void ResetFixedTargetPosition();
-    static bool s_positionInitialized;  // Static class variable to track initialization
+    static bool s_positionInitialized; // Static class variable to track initialization
 
     // Text rendering members
     bool m_showText;

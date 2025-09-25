@@ -2,10 +2,10 @@
 #ifndef FRAME_BUFFER_H
 #define FRAME_BUFFER_H
 
-#include <mutex>
-#include <thread>
 #include <atomic>
 #include <condition_variable>
+#include <mutex>
+#include <thread>
 
 // Forward declaration - use the exact same struct name from jpeg_stream.h
 struct MJPEGStream;
@@ -25,8 +25,8 @@ public:
     void setTargetResolution(int width, int height);
 
     // Get direct access to the current frame buffer (no copy)
-    //void lockFrame(int** pixels, int* width, int* height);
-    //void unlockFrame();
+    // void lockFrame(int** pixels, int* width, int* height);
+    // void unlockFrame();
     void setURL(const char* url);
 
     // Control methods
@@ -59,7 +59,7 @@ private:
     void swapBuffers();
 
     int* resizeFrame(int* sourcePixels, int sourceWidth, int sourceHeight,
-        int targetWidth, int targetHeight);
+                     int targetWidth, int targetHeight);
 
     // Original stream
     MJPEGStream* stream = nullptr;
